@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transformer Explainer Interativo | Jornada Animada & QKV Multi-Head</title>
+  
+  <!-- Fontes Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- KaTeX para renderização matemática ultra-rápida -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+  <link rel="stylesheet" href="styles.css?v=20261114">
+</head>
+<body data-theme="light">
+
+  <!-- ==================== HEADER ==================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h1>Transformer Explainer <span class="badge-tag">Jornada Animada & QKV</span></h1>
+          <p class="subtitle">Visualizador interativo do fluxo de dados e raciocínio matemático nos Modelos de Linguagem (GPT-2)</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="btn-icon" title="Alternar Tema Claro / Escuro">
+          <span class="icon-sun" style="display:none;">☀️</span>
+          <span class="icon-moon">🌙</span>
+        </button>
+        <a href="#estagios-isolados" class="btn-outline">
+          <span>🔬 Estágios Isolados</span>
+        </a>
+        <a href="#teoria-detalhada" class="btn-outline">
+          <span>📚 Teoria Completa</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== CONTEÚDO PRINCIPAL ==================== -->
+  <main class="main-container">
+    
+    <!-- 1. PAINEL DE CONTROLE SUPERIOR (PROMPT & PARÂMETROS) -->
+    <section class="control-panel card">
+      <div class="panel-header">
+        <div class="step-indicator">
+          <span class="step-number">Entrada</span>
+          <h2>Texto de Entrada & Parâmetros de Amostragem</h2>
+        </div>
+        <div class="presets-wrapper">
+          <span class="presets-label">Exemplos rápidos:</span>
+          <div class="preset-buttons" id="presetButtons">
+            <button class="preset-chip active" data-text="Data visualization empowers users to">Data visualization</button>
+            <button class="preset-chip" data-text="A inteligência artificial irá transformar o">IA e Futuro</button>
+            <button class="preset-chip" data-text="O modelo de linguagem prevê a próxima">Previsão LLM</button>
+            <button class="preset-chip" data-text="Atenção é tudo o que você">Attention Paper</button>
+            <button class="preset-chip" data-text="No processamento de linguagem natural usamos redes">Redes em PLN</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <div class="prompt-input-wrapper">
+          <label for="promptInput">Texto a ser processado (Prompt):</label>
+          <div class="textarea-container">
+            <input type="text" id="promptInput" placeholder="Digite uma frase para visualizar o raciocínio matemático do Transformer..." autocomplete="off">
+            <button id="clearPromptBtn" class="btn-clear" title="Limpar texto">&times;</button>
+          </div>
+          <div class="prompt-stats">
+            <span id="charCount">0 caracteres</span> &bull; 
+            <span id="tokenCount">0 tokens</span> &bull; 
+            <span class="hint-text">Edite o texto ou utilize o player animado abaixo para assistir à jornada de reasoning</span>
+          </div>
+        </div>
+
+        <div class="hyperparameters-box">
+          <div class="param-group">
+            <div class="param-header">
+              <label for="temperatureSlider">Temperatura (<span class="math-sym">T</span>):</label>
+              <span id="temperatureValue" class="param-badge">0.70</span>
+            </div>
+            <input type="range" id="temperatureSlider" min="0.1" max="2.0" step="0.05" value="0.7">
+            <div class="param-scale">
+              <span>0.1 (Focado)</span>
+              <span>1.0 (Balanceado)</span>
+              <span>2.0 (Diverso)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. PLAYER DE VÍDEO / JORNADA DE RACIOCÍNIO ANIMADA (COM MULTI-HEAD QKV) -->
+    <section class="video-player-card card">
+      <div class="player-top-bar">
+        <div class="player-title-group">
+          <div class="live-rec-badge">
+            <span class="rec-dot"></span>
+            <span>Jornada do Raciocínio (Video Walkthrough)</span>
+          </div>
+          <h3 id="currentStepTitle">Etapa 1: Entrada, Tokenização & Embeddings</h3>
+        </div>
+
+        <div class="player-controls-group">
+          <button id="prevStepBtn" class="btn-player" title="Passo anterior">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+          </button>
+          <button id="playPauseBtn" class="btn-player btn-player-primary" title="Reproduzir / Pausar Jornada">
+            <svg id="playIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="pauseIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            <span id="playBtnText">Reproduzir Jornada</span>
+          </button>
+          <button id="nextStepBtn" class="btn-player" title="Próximo passo">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+          <button id="replayBtn" class="btn-player" title="Reiniciar do começo">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+          </button>
+          
+          <div class="speed-selector-wrapper">
+            <label for="videoSpeed">Velocidade:</label>
+            <select id="videoSpeed">
+              <option value="6500">0.5x (Bem Lenta / Detalhada)</option>
+              <option value="4500" selected>1.0x (Didática / Padrão)</option>
+              <option value="2800">1.5x (Normal)</option>
+              <option value="1600">2.0x (Rápida)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- BARRA DE PROGRESSO COM MARCOS DAS 7 ETAPAS -->
+      <div class="timeline-scrubber-wrapper">
+        <div class="timeline-track">
+          <div class="timeline-fill" id="timelineFill"></div>
+        </div>
+        <div class="timeline-milestones" id="timelineMilestones">
+          <div class="milestone active" data-step="0">
+            <span class="milestone-dot"></span>
+            <span class="milestone-label">1. Embeddings</span>
+          </div>
+          <div class="milestone" data-step="1">
+            <span class="milestone-dot"></span>
+            <span class="milestone-label">2. Projeção QKV</span>
+          </div>
+          <div class="milestone" data-step="2">
+            <span class="milestone-dot"></span>
+            <span class="milestone-label">3. Multi-Head (12 Cabeças)</span>
+          </div>
+          <div class="milestone" data-step="3">
+            <span class="milestone-dot"></span>
+            <span class="milestone-label">4. Atenção & Residual</span>
+          </div>
+          <div class="milestone" data-step="4">
+            <span class="milestone-dot"></span>
+            <span class="milestone-label">5. MLP & Residual</span>
+          </div>
+          <div class="milestone" data-step="5">
+            <span class="milestone-dot"></span>
+            <span class="milestone-label">6. 12 Blocos</span>
+          </div>
+          <div class="milestone" data-step="6">
+            <span class="milestone-dot"></span>
+            <span class="milestone-label">7. Probabilidades</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- HUD DO RACIOCÍNIO EM TEMPO REAL -->
+      <div class="reasoning-hud" id="reasoningHud">
+        <div class="hud-header">
+          <span class="hud-tag" id="hudStepBadge">Passo 1 / 7</span>
+          <span class="hud-concept" id="hudConcept">Espaço Vetorial Contínuo</span>
+          <div class="hud-head-indicator" id="hudHeadIndicator" style="display:none;">
+            <span class="head-pill active" id="hudHeadPill">Cabeça 1: Contexto Imediato</span>
+          </div>
+          <span class="hud-confidence-pill" id="hudConfidencePill">Estado: Aguardando propagação</span>
+        </div>
+        <p class="hud-text" id="hudExplanation">
+          Cada palavra é decomposta em tokens e projetada em um vetor contínuo no espaço $\mathbb{R}^{d_{model}}$, somado à sua codificação posicional ($X_0 = W_e + W_p$).
+        </p>
+        <div class="hud-live-trace" id="hudLiveTrace">
+          <div class="trace-item">
+            <span class="trace-label">🎯 Foco Sintático / Último Token:</span>
+            <span class="trace-val" id="traceLastToken">"to" (Preposição Infinitiva)</span>
+          </div>
+          <div class="trace-item">
+            <span class="trace-label">🔗 Contexto Ativo na Frase:</span>
+            <span class="trace-val" id="traceContextWords">data + visualization + empowers</span>
+          </div>
+          <div class="trace-item">
+            <span class="trace-label">📈 Candidatas Descobertas na Etapa:</span>
+            <span class="trace-val" id="traceEmergingWords">Calculando...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. SIMULADOR SANKEY INTERATIVO (FLUXOGRAMA COMPLETO) -->
+    <section class="transformer-flowchart-section card">
+      <div class="flowchart-header-bar">
+        <div>
+          <h2>Fluxograma da Arquitetura (Passagem Direta Completa)</h2>
+          <p class="subtitle">
+            Passe o mouse sobre os elementos ou clique no botão <span class="zoom-badge-btn">🔍</span> ao lado dos títulos para abrir o <strong>Detalhamento Matemático Expandido</strong>.
+          </p>
+        </div>
+        <div class="flowchart-nav-controls">
+          <div class="block-stepper">
+            <span class="stepper-label">Bloco:</span>
+            <button class="stepper-btn" id="prevBlockBtn" title="Bloco anterior">&lt;</button>
+            <span class="stepper-val" id="blockNumberLabel">Bloco 1 de 12</span>
+            <button class="stepper-btn" id="nextBlockBtn" title="Próximo bloco">&gt;</button>
+            <button class="btn-pulse-stepper" id="btnAnimate12Blocks" title="Animar passagem através dos 12 Blocos Transformer">⚡ 12 Blocos</button>
+          </div>
+          <div class="head-stepper">
+            <span class="stepper-label">Cabeça de Atenção:</span>
+            <button class="stepper-btn" id="prevHeadBtn" title="Cabeça anterior">&lt;</button>
+            <span class="stepper-val" id="headNumberLabel">Cabeça 1 de 12</span>
+            <button class="stepper-btn" id="nextHeadBtn" title="Próxima cabeça">&gt;</button>
+            <button class="btn-pulse-stepper" id="btnAnimate12Heads" title="Animar ciclo completo das 12 Cabeças Multi-Head">⚡ 12 Cabeças</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CANVAS SVG DO FLUXOGRAMA -->
+      <div class="flowchart-canvas-wrapper" id="flowchartWrapper">
+        <div class="flowchart-canvas-scroll">
+          <svg id="transformerSvg" class="transformer-flow-svg" viewBox="0 0 1360 560" preserveAspectRatio="xMidYMid meet">
+            <!-- Renderizado dinamicamente via script.js -->
+          </svg>
+        </div>
+      </div>
+
+      <!-- PAINEL DE INSPEÇÃO INTERATIVA (HOVER TOOLTIP) -->
+      <div class="interactive-inspector-footer" id="interactiveInspector">
+        <div class="inspector-badge-status">
+          <span class="status-indicator-dot"></span>
+          <span id="inspectorTitle">💡 Dica Interativa:</span>
+        </div>
+        <div class="inspector-detail-text" id="inspectorDescription">
+          Passe o mouse sobre os <strong>tokens</strong>, as <strong>fitas de fluxo (Q, K, V)</strong>, a <strong>matriz de atenção</strong> ou as <strong>barras de probabilidades</strong> para inspecionar os tensores em cada etapa. Clique em <span style="color:#6366f1;font-weight:700;">🔍</span> para zoom matemático.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. VISÃO DETALHADA POR ESTÁGIOS ISOLADOS (COMO NA VERSÃO 1) -->
+    <section class="isolated-stages-container" id="estagios-isolados">
+      <div class="section-divider-header">
+        <span class="divider-badge">Análise Isolada Passo a Passo</span>
+        <h2>Como o Raciocínio é Construído em Cada Módulo</h2>
+        <p class="subtitle">
+          Explore cada subsistema individualmente: da conversão de caracteres em IDs até a projeção final nos logits do vocabulário.
+        </p>
+      </div>
+
+      <!-- ESTÁGIO 1 ISOLADO: TOKENIZAÇÃO -->
+      <div class="stage-isolated-card card" id="stage-card-tokenization">
+        <div class="stage-isolated-header">
+          <div class="stage-tag-group">
+            <span class="stage-tag-badge">Módulo 1</span>
+            <h3>1. Tokenização & Vocabulário Discreto</h3>
+          </div>
+          <button class="btn-zoom-stage" data-modal="embedding" title="Ver formulação matemática">
+            <span>🔍 Detalhes Matemáticos</span>
+          </button>
+        </div>
+        <p class="stage-isolated-desc">
+          O modelo não recebe texto plano. A sentença é decomposta em tokens de subpalavras (BPE / Byte-Pair Encoding) e indexada no dicionário $|V| = 50.257$:
+        </p>
+        <div class="token-chips-wrapper" id="isolatedTokenChips">
+          <!-- Injetado dinamicamente via JS -->
+        </div>
+      </div>
+
+      <!-- ESTÁGIO 2 ISOLADO: EMBEDDINGS & POSICIONAL -->
+      <div class="stage-isolated-card card" id="stage-card-embedding">
+        <div class="stage-isolated-header">
+          <div class="stage-tag-group">
+            <span class="stage-tag-badge">Módulo 2</span>
+            <h3>2. Vetores de Embedding Semântico & Codificação Posicional</h3>
+          </div>
+          <button class="btn-zoom-stage" data-modal="embedding" title="Ver formulação matemática">
+            <span>🔍 Detalhes Matemáticos</span>
+          </button>
+        </div>
+        <p class="stage-isolated-desc">
+          Cada token recebe um vetor contínuo de dimensão $d_{model} = 768$ somado à sua posição temporal: $X_0 = W_e[\text{id}] + W_p[\text{pos}]$.
+        </p>
+        <div class="vector-preview-grid" id="isolatedEmbeddingCards">
+          <!-- Injetado dinamicamente via JS -->
+        </div>
+      </div>
+
+      <!-- ESTÁGIO 3 ISOLADO: MULTI-HEAD SELF-ATTENTION & HEATMAP CAUSAL -->
+      <div class="stage-isolated-card card stage-isolated-special" id="stage-card-attention">
+        <div class="stage-isolated-header">
+          <div class="stage-tag-group">
+            <span class="stage-tag-badge special">Módulo 3 (Núcleo)</span>
+            <h3>3. Auto-Atenção Multi-Head: Interação das 12 Cabeças</h3>
+          </div>
+          <button class="btn-zoom-stage" data-modal="attention" title="Ver formulação matemática">
+            <span>🔍 Detalhes Matemáticos</span>
+          </button>
+        </div>
+        <p class="stage-isolated-desc">
+          Cada cabeça projeta os vetores em subespaços ortogonais $d_k = 64$ e calcula a compatibilidade $\text{Softmax}\left(\frac{QK^T}{\sqrt{d_k}} + M\right)$:
+        </p>
+        
+        <!-- SELETOR DE CABEÇAS MULTI-HEAD -->
+        <div class="head-tabs-bar">
+          <span class="head-tabs-label">Especialização da Cabeça:</span>
+          <div class="head-tab-buttons" id="isolatedHeadTabs">
+            <button class="head-pill active" data-head="1">Cabeça 1 (Contexto Imediato / Recência)</button>
+            <button class="head-pill" data-head="2">Cabeça 2 (Sintaxe & Concordância)</button>
+            <button class="head-pill" data-head="3">Cabeça 3 (Dependências de Longo Alcance)</button>
+            <button class="head-pill" data-head="4">Cabeça 4 (Pontuação & Ênfase Global)</button>
+          </div>
+        </div>
+
+        <!-- GRADE DO HEATMAP CAUSAL ISOLADO -->
+        <div class="isolated-heatmap-layout">
+          <div class="heatmap-table-container">
+            <div class="heatmap-table-title">
+              <strong>Matriz de Atenção Causal</strong>
+              <small class="text-muted">(Passe o mouse sobre as células para inspecionar os pesos)</small>
+            </div>
+            <div class="heatmap-grid" id="isolatedHeatmapGrid">
+              <!-- Grid interativo gerado via JS -->
+            </div>
+            <div class="heatmap-scale-bar">
+              <span>0.0 (Sem atenção / Bloqueado por Máscara Causal)</span>
+              <div class="scale-gradient"></div>
+              <span>1.0 (Atenção Máxima)</span>
+            </div>
+          </div>
+
+          <div class="heatmap-qkv-inspector" id="isolatedInspectorCard">
+            <h4>Inspetor de Atenção Q·Kᵀ</h4>
+            <div id="isolatedInspectorBody" class="inspector-empty">
+              <p>👉 Passe o mouse sobre qualquer célula da matriz ao lado para inspecionar como a Query consulta a Key correspondente.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESTÁGIO 4 ISOLADO: MLP & CONEXÕES RESIDUAIS -->
+      <div class="stage-isolated-card card" id="stage-card-mlp">
+        <div class="stage-isolated-header">
+          <div class="stage-tag-group">
+            <span class="stage-tag-badge">Módulo 4</span>
+            <h3>4. Redes Feed-Forward (MLP) & Conexões Residuais</h3>
+          </div>
+          <button class="btn-zoom-stage" data-modal="mlp" title="Ver formulação matemática">
+            <span>🔍 Detalhes Matemáticos</span>
+          </button>
+        </div>
+        <p class="stage-isolated-desc">
+          O Perceptron Multicamadas (MLP) expande o vetor para $3.072$ dimensões com ativação não-linear GELU, somado à conexão residual $X + \text{SubLayer}(X)$:
+        </p>
+        <div class="ffn-architecture-strip">
+          <span class="arch-box">Entrada $X$</span>
+          <span class="arch-arrow">&rarr;</span>
+          <span class="arch-box">LayerNorm 1</span>
+          <span class="arch-arrow">&rarr;</span>
+          <span class="arch-box">Multi-Head Attn</span>
+          <span class="arch-arrow">&rarr;</span>
+          <span class="arch-box residual-highlight">+ Conexão Residual 1</span>
+          <span class="arch-arrow">&rarr;</span>
+          <span class="arch-box">LayerNorm 2</span>
+          <span class="arch-arrow">&rarr;</span>
+          <span class="arch-box">MLP 4x (GELU)</span>
+          <span class="arch-arrow">&rarr;</span>
+          <span class="arch-box residual-highlight">+ Conexão Residual 2</span>
+        </div>
+      </div>
+
+      <!-- ESTÁGIO 5 ISOLADO: DISTRIBUIÇÃO DE PROBABILIDADES -->
+      <div class="stage-isolated-card card" id="stage-card-probabilities">
+        <div class="stage-isolated-header">
+          <div class="stage-tag-group">
+            <span class="stage-tag-badge green">Módulo 5 (Previsão)</span>
+            <h3>5. Unembedding ($W_U$) & Distribuição de Probabilidades</h3>
+          </div>
+          <button class="btn-zoom-stage" data-modal="probabilities" title="Ver formulação matemática">
+            <span>🔍 Detalhes Matemáticos</span>
+          </button>
+        </div>
+        <p class="stage-isolated-desc">
+          O vetor do último token é projetado nos logits de vocabulário e normalizado via Softmax com Temperatura ($T = 0.70$):
+        </p>
+
+        <div class="isolated-probabilities-grid">
+          <div class="prob-bars-column" id="isolatedProbList">
+            <!-- Barras injetadas via JS -->
+          </div>
+          <div class="prob-summary-card">
+            <h4>Palavra Mais Provável (Greedy / Argmax)</h4>
+            <div class="top-candidate-hero" id="isolatedTopCandidateHero">
+              <span class="hero-word" id="heroWord">visualize</span>
+              <span class="hero-prob" id="heroProb">54.67%</span>
+            </div>
+            <p class="hero-note" id="heroNote">
+              Apresenta o maior produto escalar de alinhamento com a matriz de unembedding dado o contexto acumulado.
+            </p>
+            <button class="btn btn-primary btn-block" id="isolatedAppendBtn">
+              <span>➕ Adicionar Palavra ao Texto</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== MODAL DE ZOOM / DETALHAMENTO MATEMÁTICO RESPONSIVO ==================== -->
+    <div class="math-modal-overlay" id="mathModalOverlay">
+      <div class="math-modal-dialog">
+        <div class="math-modal-top">
+          <div class="modal-header-badge-row">
+            <span class="modal-badge-tag" id="modalTag">Módulo do Transformer</span>
+            <span class="modal-dims-pill" id="modalDimsPill">d_model = 768</span>
+          </div>
+          <h2 id="modalTitle">Detalhamento Matemático</h2>
+          <button class="modal-close-icon" id="modalCloseBtn" title="Fechar janela">&times;</button>
+        </div>
+
+        <div class="math-modal-content-area" id="modalBody">
+          <!-- Conteúdo responsivo injetado dinamicamente -->
+        </div>
+
+        <div class="math-modal-bottom-bar">
+          <span class="modal-footnote">💡 Pressione <kbd>Esc</kbd> ou clique fora da janela para fechar a qualquer momento.</span>
+          <button class="btn-modal-action" id="modalOkBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+            Fechar Detalhes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== EXPLICAÇÃO TEÓRICA COMPLETA ==================== -->
+    <section class="theory-section card" id="teoria-detalhada">
+      <div class="theory-header">
+        <span class="theory-badge">Fundamentação Científica & Teórica</span>
+        <h2>Como o Transformer Funciona: Da Intuição à Matemática</h2>
+        <p class="theory-lead">
+          Um guia didático e rigoroso sobre cada engrenagem da arquitetura de Atenção que redefiniu o Processamento de Linguagem Natural e a Inteligência Artificial moderna.
+        </p>
+      </div>
+
+      <!-- ÍNDICE DE NAVEGAÇÃO RÁPIDA -->
+      <nav class="theory-nav">
+        <a href="#sec-historico">1. Da Recorrência (RNN) à Atenção</a>
+        <a href="#sec-tokenizacao">2. Tokenização e Subpalavras</a>
+        <a href="#sec-embeddings">3. Embeddings e Posição</a>
+        <a href="#sec-self-attention">4. Mecanismo de Atenção ($Q, K, V$)</a>
+        <a href="#sec-multi-head">5. Multi-Head Attention</a>
+        <a href="#sec-residual-norm">6. Conexões Residuais e LayerNorm</a>
+        <a href="#sec-ffn">7. Redes Feed-Forward (MLP)</a>
+        <a href="#sec-unembedding">8. Unembedding, Logits e Softmax</a>
+        <a href="#sec-sampling">9. Temperatura e Estratégias de Amostragem</a>
+        <a href="#sec-arquiteturas">10. Encoder vs Decoder vs Ambos</a>
+      </nav>
+
+      <article class="theory-content">
+
+        <!-- SEÇÃO 1 -->
+        <section id="sec-historico" class="theory-block">
+          <h3>1. Do Paradigma Recorrente (RNN/LSTM) à Revolução dos Transformers</h3>
+          <p>
+            Antes do surgimento dos Transformers em 2017 com o artigo <em>"Attention Is All You Need"</em> (Vaswani et al., Google Brain / Google Research), o processamento sequencial de texto era dominado por <strong>Redes Neurais Recorrentes (RNNs)</strong> e suas variantes, como as <strong>LSTMs (Long Short-Term Memory)</strong> e <strong>GRUs (Gated Recurrent Units)</strong>.
+          </p>
+          <div class="comparison-grid">
+            <div class="comp-card danger-accent">
+              <h4>O Gargalo das Redes Recorrentes (RNNs)</h4>
+              <ul>
+                <li><strong>Processamento Sequencial Estrito:</strong> Para calcular o estado oculto no tempo $t$ ($h_t$), a rede precisava obrigatoriamente do estado anterior $h_{t-1}$. Isso impedia a paralelização massiva em GPUs.</li>
+                <li><strong>Degradação do Gradiente e Esquecimento:</strong> Em frases longas, o desaparecimento do gradiente tornava inviável ligar um termo no início ao final da sentença.</li>
+                <li><strong>Gargalo de Informação:</strong> Toda a história prévia precisava caber em um único vetor fixo.</li>
+              </ul>
+            </div>
+            <div class="comp-card success-accent">
+              <h4>A Ruptura do Transformer</h4>
+              <ul>
+                <li><strong>Paralelização Total no Treinamento:</strong> Todos os tokens de uma sentença são processados simultaneamente em matrizes e tensores multidimensionais.</li>
+                <li><strong>Caminho de Informação $O(1)$:</strong> Qualquer token pode interagir diretamente com qualquer outro token da sequência através de produtos escalares, sem decaimento temporal.</li>
+                <li><strong>Escala Eficiente:</strong> A arquitetura se beneficia da adição de mais parâmetros e dados de treino (Leis de Escala).</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- SEÇÃO 2 -->
+        <section id="sec-tokenizacao" class="theory-block">
+          <h3>2. Tokenização: A Tradução de Texto para Números Discretos</h3>
+          <p>
+            Redes neurais não processam strings diretamente; elas operam sobre tensores numéricos contínuos. A primeira etapa é a <strong>Tokenização</strong>, que divide o texto em <em>tokens</em> (pedaços de palavras ou subwords) através de algoritmos como <strong>BPE (Byte Pair Encoding)</strong> ou <strong>WordPiece</strong>.
+          </p>
+          <p>
+            Cada token possui um ID numérico fixo dentro de um vocabulário pré-definido $V$:
+          </p>
+          <div class="math-callout">
+            $$\text{Texto: "Data visualization empowers"} \implies \text{Tokens: } [13466, 12480, 712, 1892]$$
+          </div>
+        </section>
+
+        <!-- SEÇÃO 3 -->
+        <section id="sec-embeddings" class="theory-block">
+          <h3>3. Embeddings de Tokens e Codificação Posicional</h3>
+          <p>
+            Com os IDs inteiros, cada token é mapeado para um vetor no espaço contínuo $\mathbb{R}^{d_{model}}$ através da matriz $W_e \in \mathbb{R}^{|V| \times d_{model}}$.
+          </p>
+          <div class="math-callout">
+            $$\mathbf{e}_t = W_e[\text{token}_t] \in \mathbb{R}^{d_{model}}$$
+          </div>
+          <p>
+            <strong>Invariância à Ordem:</strong> Como os produtos escalares da atenção não possuem noção intrínseca de ordem temporal, sem modificações a frase <em>"O gato comeu o rato"</em> teria a mesma representação que <em>"O rato comeu o gato"</em>. Para corrigir isso, somamos a <strong>Codificação Posicional</strong> ($P_t$):
+          </p>
+          <div class="math-callout">
+            $$\mathbf{x}_t = \mathbf{e}_t + \mathbf{p}_t$$
+          </div>
+          <p>
+            Pode ser calculada por funções senoidais com frequências variáveis (Vaswani et al.) ou aprendida em matrizes $W_p$ (GPT-2) ou rotativa (RoPE no LLaMA/Mistral).
+          </p>
+        </section>
+
+        <!-- SEÇÃO 4 -->
+        <section id="sec-self-attention" class="theory-block">
+          <h3>4. O Mecanismo Central: Scaled Dot-Product Self-Attention</h3>
+          <p>
+            A auto-atenção funciona como uma busca em um <strong>banco de dados associativo vetorial</strong>:
+          </p>
+          <div class="qkv-cards">
+            <div class="qkv-card">
+              <span class="qkv-letter">Q</span>
+              <div class="qkv-name">Query (Consulta)</div>
+              <p>O que o token atual procura entender ou contextualizar sobre si mesmo.</p>
+            </div>
+            <div class="qkv-card">
+              <span class="qkv-letter">K</span>
+              <div class="qkv-name">Key (Chave)</div>
+              <p>O que cada token do contexto oferece como característica ou pista semântica.</p>
+            </div>
+            <div class="qkv-card">
+              <span class="qkv-letter">V</span>
+              <div class="qkv-name">Value (Valor)</div>
+              <p>O conteúdo de informação que será extraído se a consulta combinar com a chave.</p>
+            </div>
+          </div>
+          <div class="math-callout">
+            $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q K^T}{\sqrt{d_k}} + M_{\text{causal}}\right) V$$
+          </div>
+          <p>
+            <strong>Por que dividir por $\sqrt{d_k}$?</strong> Para dimensões grandes, produtos escalares crescem em magnitude, empurrando o Softmax para áreas com derivadas quase nulas (saturação do gradiente). A divisão por $\sqrt{d_k}$ mantém a variância unitária.
+          </p>
+          <p>
+            <strong>Máscara Causal ($M$):</strong> Em modelos decodificadores (GPT), futuros tokens recebem $-\infty$ na matriz, de modo que $\exp(-\infty) = 0$, impedindo vazamento de informação do futuro.
+          </p>
+        </section>
+
+        <!-- SEÇÃO 5 -->
+        <section id="sec-multi-head" class="theory-block">
+          <h3>5. Multi-Head Attention (Atenção Multicabeça)</h3>
+          <p>
+            Em vez de uma única projeção grande, os vetores são divididos em $h$ cabeças independentes ($h=12$ no GPT-2 base):
+          </p>
+          <div class="math-callout">
+            $$\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, \dots, \text{head}_h) W^O$$
+          </div>
+          <p>
+            Cada cabeça se especializa em um aspecto: concordância de gênero/número, pontuação, relações sintáticas diretas ou correlações temáticas distantes.
+          </p>
+        </section>
+
+        <!-- SEÇÃO 6 -->
+        <section id="sec-residual-norm" class="theory-block">
+          <h3>6. Conexões Residuais e Layer Normalization</h3>
+          <p>
+            Cada subcamada é envolvida por uma <strong>Conexão Residual (Skip Connection)</strong> e uma <strong>Normalização de Camada (LayerNorm)</strong>:
+          </p>
+          <div class="math-callout">
+            $$\mathbf{x}_{\text{intermediário}} = \text{LayerNorm}(\mathbf{x} + \text{SubLayer}(\mathbf{x}))$$
+          </div>
+          <p>
+            A adição direta $\mathbf{x} + F(\mathbf{x})$ garante que os gradientes fluam sem impedimentos durante a retropropagação ($\frac{\partial}{\partial \mathbf{x}} = 1 + \frac{\partial F}{\partial \mathbf{x}}$), permitindo empilhar dezenas ou centenas de blocos.
+          </p>
+        </section>
+
+        <!-- SEÇÃO 7 -->
+        <section id="sec-ffn" class="theory-block">
+          <h3>7. Redes Feed-Forward Position-Wise (MLP)</h3>
+          <p>
+            Após a atenção misturar o contexto entre tokens diferentes, cada token passa isoladamente por um Perceptron Multicamadas (MLP) com expansão de dimensão ($4 \times d_{model}$) e ativação não-linear GELU:
+          </p>
+          <div class="math-callout">
+            $$\text{FFN}(\mathbf{x}) = \text{GELU}(\mathbf{x} W_1 + \mathbf{b}_1) W_2 + \mathbf{b}_2$$
+          </div>
+          <p>
+            Pesquisas recentes indicam que as camadas MLP funcionam como uma memória de armazenamento associativo de fatos e conhecimento do mundo.
+          </p>
+        </section>
+
+        <!-- SEÇÃO 8 -->
+        <section id="sec-unembedding" class="theory-block">
+          <h3>8. Camada de Saída (Unembedding) e Softmax com Temperatura</h3>
+          <p>
+            Para prever a palavra seguinte, pegamos o vetor final do <strong>último token</strong> ($\mathbf{h}_N$), que acumulou todo o contexto da frase, e o multiplicamos pela matriz de vocabulário $W_U$:
+          </p>
+          <div class="math-callout">
+            $$\mathbf{z} = \mathbf{h}_N W_U \in \mathbb{R}^{|V|}$$
+          </div>
+          <p>
+            Aplicamos a função <strong>Softmax com Temperatura ($T$)</strong> para produzir a probabilidade de cada palavra:
+          </p>
+          <div class="math-callout">
+            $$P(\text{palavra}_i) = \frac{\exp\left(\frac{z_i}{T}\right)}{\sum_{j=1}^{|V|} \exp\left(\frac{z_j}{T}\right)}$$
+          </div>
+        </section>
+
+        <!-- SEÇÃO 9 -->
+        <section id="sec-sampling" class="theory-block">
+          <h3>9. Estratégias de Amostragem (Greedy, Top-K, Top-P)</h3>
+          <p>
+            A partir da distribuição calculada, podemos selecionar a continuação:
+          </p>
+          <div class="strategies-grid">
+            <div class="strategy-card">
+              <h4>Busca Gulosa (Greedy)</h4>
+              <p>Escolhe simplesmente a palavra com maior probabilidade ($\arg\max$). Rápido e determinístico, mas pode gerar repetições em textos longos.</p>
+            </div>
+            <div class="strategy-card">
+              <h4>Top-K Sampling</h4>
+              <p>Trunca a distribuição mantendo apenas os $K$ tokens mais prováveis e redistribui as probabilidades entre eles.</p>
+            </div>
+            <div class="strategy-card">
+              <h4>Top-P (Nucleus Sampling)</h4>
+              <p>Seleciona o menor conjunto de palavras cuja soma acumulada de probabilidades atinge o limiar $p$ (ex: $90\%$). Adapta-se dinamicamente à incerteza do modelo.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- SEÇÃO 10 -->
+        <section id="sec-arquiteturas" class="theory-block">
+          <h3>10. As Três Famílias de Transformers</h3>
+          <div class="architectures-table-wrapper">
+            <table class="theory-table">
+              <thead>
+                <tr>
+                  <th>Família</th>
+                  <th>Atenção</th>
+                  <th>Modelos Famosos</th>
+                  <th>Principal Uso</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Decoder-Only</strong></td>
+                  <td>Causal (Máscara triangular; tokens só olham para o passado)</td>
+                  <td>GPT-2/3/4, LLaMA, Claude, Gemini</td>
+                  <td>Geração de texto livre, chat e raciocínio.</td>
+                </tr>
+                <tr>
+                  <td><strong>Encoder-Only</strong></td>
+                  <td>Bidirecional (tokens olham em ambas as direções)</td>
+                  <td>BERT, RoBERTa</td>
+                  <td>Classificação, NER, extração de representações.</td>
+                </tr>
+                <tr>
+                  <td><strong>Encoder-Decoder</strong></td>
+                  <td>Encoder bidirecional + Decoder causal com cross-attention</td>
+                  <td>Transformer original (Vaswani 2017), T5, BART</td>
+                  <td>Tradução automática e sumarização.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </article>
+
+      <div class="theory-footer">
+        <p><strong>Desenvolvido para estudo e experimentação didática em Processamento de Linguagem Natural & Redes Neurais Recorrentes/Transformers.</strong></p>
+        <a href="#promptInput" class="btn btn-primary">Voltar ao Topo & Experimentar</a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p>Transformer Explainer Interativo &bull; Baseado na visualização do <em>Transformer Explainer (Polo Club of Data Science, Georgia Tech)</em> e no artigo <em>Attention Is All You Need</em>.</p>
+    </div>
+  </footer>
+
+  <script src="script.js?v=20261114"></script>
+</body>
+</html>
