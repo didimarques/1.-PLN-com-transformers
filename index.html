@@ -15,7 +15,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20261114">
+  <link rel="stylesheet" href="styles.css?v=20261116">
 </head>
 <body data-theme="light">
 
@@ -40,6 +40,9 @@
           <span class="icon-sun" style="display:none;">☀️</span>
           <span class="icon-moon">🌙</span>
         </button>
+        <a href="#cenario-busca-agentes" class="btn-outline">
+          <span>🤖 Busca &amp; Agentes</span>
+        </a>
         <a href="#estagios-isolados" class="btn-outline">
           <span>🔬 Estágios Isolados</span>
         </a>
@@ -253,6 +256,94 @@
         </div>
         <div class="inspector-detail-text" id="inspectorDescription">
           Passe o mouse sobre os <strong>tokens</strong>, as <strong>fitas de fluxo (Q, K, V)</strong>, a <strong>matriz de atenção</strong> ou as <strong>barras de probabilidades</strong> para inspecionar os tensores em cada etapa. Clique em <span style="color:#6366f1;font-weight:700;">🔍</span> para zoom matemático.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3.5. CENÁRIO INTERATIVO DE BUSCA, FERRAMENTAS & ORQUESTRAÇÃO MULTIAGENTE -->
+    <section id="cenario-busca-agentes" class="agent-search-section card">
+      <div class="agent-search-header">
+        <div>
+          <div class="divider-badge">Orquestrador de IA &bull; LangChain / LangGraph</div>
+          <h2>Cenário de Buscas Animadas: Ferramentas &amp; Arquitetura Multiagente</h2>
+          <p class="subtitle">
+            Digite uma solicitação ou escolha um cenário abaixo para assistir à animação passo a passo de como o <strong>Agente Supervisor</strong> roteia a busca entre <strong>Arquivos/RAG (pgvector)</strong>, <strong>PostgreSQL</strong>, <strong>APIs REST</strong>, <strong>Pesquisa Web (Tavily)</strong> e <strong>Processos Python</strong>.
+          </p>
+        </div>
+        <div class="agent-status-pill" id="agentSearchStatusBadge">
+          <span class="agent-status-dot"></span>
+          <span id="agentSearchStatusText">Pronto para buscar</span>
+        </div>
+      </div>
+
+      <!-- Chips de Cenários Prontos -->
+      <div class="agent-presets-bar">
+        <span class="presets-label">Cenários de busca:</span>
+        <div class="preset-buttons" id="agentPresetChips">
+          <button type="button" class="preset-chip agent-preset-chip active" data-scenario="multiagent" data-query="Compare o faturamento de outubro com os resultados do relatório comercial e pesquise as tendências do mercado.">🧠 Multiagente (Modelo B)</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="files_rag" data-query="Busque no relatório comercial em PDF as metas do Q4 e a política de descontos.">📄 3.3 Arquivos &amp; RAG (PDF/pgvector)</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="rest_api" data-query="Consultar dados cadastrais do cliente CPF 123.456.789-00 na API.">🔌 3.4 Consumo de API REST</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="web_search" data-query="Pesquise na internet as principais tendências de mercado de IA em 2026.">🌐 3.5 Pesquisa Web (Tavily)</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="python_process" data-query="Executar processo gerar_relatorio_vendas para mês 10 de 2026.">⚙️ 3.6 Processo Python</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="database_sql" data-query="Consultar total de vendas e faturamento de outubro no PostgreSQL.">🗄️ Banco PostgreSQL</button>
+        </div>
+      </div>
+
+      <!-- Barra de Busca -->
+      <div class="agent-search-controls">
+        <div class="agent-search-input-wrap">
+          <input type="text" id="agentSearchInput" value="Compare o faturamento de outubro com os resultados do relatório comercial e pesquise as tendências do mercado." placeholder="Digite o que deseja buscar (PDFs, SQL, API REST, Web ou Multiagente)..." autocomplete="off">
+        </div>
+        <select id="agentScenarioSelect" class="agent-scenario-select" title="Modo de roteamento da busca">
+          <option value="auto">🤖 Auto (Supervisor detecta)</option>
+          <option value="multiagent" selected>🧠 Modelo B: Multiagente Paralelo</option>
+          <option value="files_rag">📄 3.3 Leitura &amp; Busca Semântica (PDF + pgvector)</option>
+          <option value="rest_api">🔌 3.4 Consumo de APIs REST</option>
+          <option value="web_search">🌐 3.5 Pesquisa na Internet (Tavily)</option>
+          <option value="python_process">⚙️ 3.6 Execução de Processo Python</option>
+          <option value="database_sql">🗄️ Banco de Dados PostgreSQL</option>
+        </select>
+        <button type="button" id="btnRunAgentSearch" class="btn btn-primary">🔍 Buscar &amp; Animar</button>
+        <button type="button" id="btnClearAgentSearch" class="btn-outline">Limpar</button>
+      </div>
+
+      <!-- Barra de Progresso da Busca -->
+      <div class="agent-progress-wrap">
+        <div class="agent-progress-track">
+          <div class="agent-progress-fill" id="agentProgressFill" style="width: 0%;"></div>
+        </div>
+        <span class="agent-progress-label" id="agentProgressLabel">0% — Aguardando início da busca</span>
+      </div>
+
+      <!-- Pipeline Visual Animado -->
+      <div class="agent-pipeline-board" id="agentPipelineBoard">
+        <!-- Renderizado dinamicamente por script.js conforme o cenário -->
+      </div>
+
+      <!-- Grid de Rastreamento + Resultados Descobertos -->
+      <div class="agent-workspace-grid">
+        <div class="agent-trace-panel">
+          <div class="panel-sub-header">
+            <h3>⚡ Execução &amp; Rastreamento da Busca</h3>
+            <span class="trace-counter-pill" id="agentStepCounter">0 / 0 etapas</span>
+          </div>
+          <div class="agent-trace-list" id="agentTraceList">
+            <div class="agent-empty-state">Clique em <strong>Buscar &amp; Animar</strong> para acompanhar cada etapa da busca em tempo real.</div>
+          </div>
+        </div>
+
+        <div class="agent-results-panel">
+          <div class="panel-sub-header">
+            <h3>📦 Informações Encontradas &amp; Agregador</h3>
+            <span class="trace-counter-pill" id="agentSourceCounter">0 fontes</span>
+          </div>
+          <div class="agent-found-items" id="agentFoundItems">
+            <div class="agent-empty-state">Os trechos, registros, respostas de API e resultados web aparecerão aqui conforme forem descobertos.</div>
+          </div>
+          <div class="agent-aggregator-box" id="agentAggregatorBox" style="display:none;">
+            <div class="aggregator-title">✨ Agregador de Resultados (Síntese Final)</div>
+            <div class="aggregator-content" id="agentAggregatorContent"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -705,6 +796,6 @@
     </div>
   </footer>
 
-  <script src="script.js?v=20261114"></script>
+  <script src="script.js?v=20261116"></script>
 </body>
 </html>

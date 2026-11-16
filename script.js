@@ -3280,5 +3280,637 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ==================== 6. CENÁRIO INTERATIVO DE BUSCA, FERRAMENTAS & MULTIAGENTE ====================
+  function initAgentSearchScenario() {
+    const searchInput = document.getElementById('agentSearchInput');
+    const scenarioSelect = document.getElementById('agentScenarioSelect');
+    const btnRun = document.getElementById('btnRunAgentSearch');
+    const btnClear = document.getElementById('btnClearAgentSearch');
+    const presetChips = document.getElementById('agentPresetChips');
+    const statusBadge = document.getElementById('agentSearchStatusBadge');
+    const statusText = document.getElementById('agentSearchStatusText');
+    const progressFill = document.getElementById('agentProgressFill');
+    const progressLabel = document.getElementById('agentProgressLabel');
+    const pipelineBoard = document.getElementById('agentPipelineBoard');
+    const traceList = document.getElementById('agentTraceList');
+    const stepCounter = document.getElementById('agentStepCounter');
+    const foundItems = document.getElementById('agentFoundItems');
+    const sourceCounter = document.getElementById('agentSourceCounter');
+    const aggregatorBox = document.getElementById('agentAggregatorBox');
+    const aggregatorContent = document.getElementById('agentAggregatorContent');
+
+    if (!searchInput || !btnRun || !pipelineBoard) return;
+
+    let activeTimer = null;
+
+    function detectScenarioFromQuery(query) {
+      const q = (query || "").toLowerCase();
+      const hasMulti = (q.includes("compare") || q.includes(" e ")) && (q.includes("tendências") || q.includes("mercado") || q.includes("web")) && (q.includes("faturamento") || q.includes("relatório") || q.includes("pdf"));
+      if (hasMulti) return "multiagent";
+      if (/cpf|api|rest|endpoint|cliente|clientes|http|json/.test(q)) return "rest_api";
+      if (/internet|web|tavily|tendência|tendencias|mercado|pesquise|notícia|noticias|2026/.test(q)) return "web_search";
+      if (/gerar_relatorio|processo|python|executar|gerar relatório|gerar relatorio/.test(q)) return "python_process";
+      if (/pdf|arquivo|arquivos|documento|rag|chunk|pgvector|semântica|semantica|política|politica|ler_pdf/.test(q)) return "files_rag";
+      if (/sql|postgres|postgresql|banco|vendas|faturamento|consultar_vendas|receita/.test(q)) return "database_sql";
+      return "multiagent";
+    }
+
+    function buildScenarioPlan(mode, query) {
+      const cleanQ = query.trim() || "Solicitação empresarial";
+      const cpfMatch = cleanQ.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+      const cpfVal = cpfMatch ? cpfMatch[0] : "123.456.789-00";
+
+      const PLANS = {
+        files_rag: {
+          label: "3.3 Leitura & Pesquisa Semântica (PDF + pgvector)",
+          nodes: [
+            { id: "file", icon: "📄", title: "Arquivo (PDF)", sub: "PyPDFLoader autorizado" },
+            { id: "extract", icon: "📝", title: "Extração", sub: "Texto limpo [:15000]" },
+            { id: "chunks", icon: "✂️", title: "Chunks", sub: "Blocos de 500 tokens" },
+            { id: "embed", icon: "🧮", title: "Embeddings", sub: "Vetores ℝ³⁸⁴ / ℝ¹⁵³⁶" },
+            { id: "pgvec", icon: "🗄️", title: "pgvector", sub: "Índice HNSW / Cosseno" },
+            { id: "llm", icon: "🤖", title: "Contexto LLM", sub: "Top-K trechos relevantes" }
+          ],
+          steps: [
+            {
+              nodeId: "file",
+              title: "Leitura de arquivo autorizado (ler_pdf)",
+              tag: "app/tools/files/reader.py",
+              desc: `Validando acesso em storage/ e abrindo documento PDF para a busca: "${cleanQ}".`,
+              code: `PyPDFLoader("storage/relatorio_comercial_2026.pdf").load()`,
+              found: null
+            },
+            {
+              nodeId: "extract",
+              title: "Extração de conteúdo textual",
+              tag: "PyPDFLoader",
+              desc: "Concatenando páginas do PDF e removendo cabeçalhos repetitivos (limite de 15.000 chars).",
+              code: `"\\n".join(doc.page_content for doc in documentos)[:15000]  # 12 páginas extraídas`,
+              found: null
+            },
+            {
+              nodeId: "chunks",
+              title: "Divisão em chunks semânticos",
+              tag: "TextSplitter",
+              desc: "Segmentando o texto em 28 chunks de 500 tokens com overlap de 80 tokens para preservar contexto.",
+              code: `chunks = split_text(texto, chunk_size=500, overlap=80)  # 28 chunks gerados`,
+              found: null
+            },
+            {
+              nodeId: "embed",
+              title: "Geração de Embeddings da consulta e chunks",
+              tag: "EmbeddingModel",
+              desc: `Convertendo a pergunta "${cleanQ.slice(0, 48)}..." em vetor denso para comparação.`,
+              code: `q_vec = embed_query("${cleanQ.slice(0, 42)}")  # dim=1536`,
+              found: null
+            },
+            {
+              nodeId: "pgvec",
+              title: "Busca por similaridade vetorial no PostgreSQL",
+              tag: "pgvector (<=>)",
+              desc: "Calculando distância de cosseno no pgvector e recuperando os 3 trechos mais próximos.",
+              code: `SELECT content, 1 - (embedding <=> :q_vec) AS score FROM doc_chunks ORDER BY embedding <=> :q_vec LIMIT 3;`,
+              found: [
+                {
+                  source: "Interno: PDF + pgvector",
+                  type: "internal",
+                  score: "94.2% similaridade",
+                  pct: 94,
+                  title: "Chunk #14 — Relatório Comercial Q4 (Pág. 6)",
+                  body: "Meta comercial definida em R$ 1,45M para o trimestre, com política de desconto máximo de 12% para contratos anuais."
+                },
+                {
+                  source: "Interno: PDF + pgvector",
+                  type: "internal",
+                  score: "88.7% similaridade",
+                  pct: 89,
+                  title: "Chunk #19 — Regras de Reembolso e SLA (Pág. 9)",
+                  body: "Reembolsos aprovados em até 7 dias úteis mediante validação automática do agente operacional."
+                }
+              ]
+            },
+            {
+              nodeId: "llm",
+              title: "Injeção de contexto no LLM",
+              tag: "RAG Context",
+              desc: "Trechos recuperados entregues ao modelo para formular resposta fundamentada sem alucinações.",
+              code: `contexto_rag = format_docs(top_k_chunks) -> model.invoke(prompt + contexto_rag)`,
+              found: null
+            }
+          ],
+          summary: `Busca semântica em PDF concluída via <strong>ler_pdf + pgvector</strong> para <em>"${escapeXml(cleanQ)}"</em>: foram recuperados 2 chunks internos de alta similaridade (94.2% e 88.7%) com metas comerciais e políticas de desconto/reembolso.`
+        },
+
+        rest_api: {
+          label: "3.4 Consumo de APIs REST (consultar_cliente)",
+          nodes: [
+            { id: "sup", icon: "🧭", title: "Supervisor", sub: "Interpreta solicitação" },
+            { id: "auth", icon: "🔐", title: "Backend Auth", sub: "URL, escopo & token" },
+            { id: "req", icon: "📡", title: "GET /clientes", sub: `cpf=${cpfVal}` },
+            { id: "json", icon: "📦", title: "Payload JSON", sub: "Validação Pydantic" }
+          ],
+          steps: [
+            {
+              nodeId: "sup",
+              title: "Roteamento para Agente Operacional",
+              tag: "consultar_cliente",
+              desc: `Identificada necessidade de consulta cadastral para "${cleanQ}".`,
+              code: `tool_call: consultar_cliente(cpf="${cpfVal}")`,
+              found: null
+            },
+            {
+              nodeId: "auth",
+              title: "Validação de URL, permissões e timeout no backend",
+              tag: "app/tools/integrations/rest_api.py",
+              desc: "URL e credenciais são controladas exclusivamente pelo backend (nunca pelo modelo).",
+              code: `headers = {"Authorization": "Bearer <BACKEND_TOKEN>"} | timeout=10s`,
+              found: null
+            },
+            {
+              nodeId: "req",
+              title: "Requisição HTTP GET enviada ao endpoint REST",
+              tag: "requests.get",
+              desc: `Consultando serviço externo/corporativo para CPF ${cpfVal}...`,
+              code: `GET https://api.exemplo.com/clientes?cpf=${cpfVal} -> HTTP 200 OK (142ms)`,
+              found: [
+                {
+                  source: "Interno: API REST (/clientes)",
+                  type: "internal",
+                  score: "HTTP 200 OK",
+                  pct: 96,
+                  title: `Registro Cadastral — CPF ${cpfVal}`,
+                  body: "Cliente: Empresa Horizonte Ltda | Plano: Enterprise | Status: Ativo | Última fatura: R$ 18.400,00 (adimplente)."
+                }
+              ]
+            },
+            {
+              nodeId: "json",
+              title: "Normalização e entrega do JSON ao orquestrador",
+              tag: "response.json()",
+              desc: "Dados estruturados validados e prontos para resposta ao usuário.",
+              code: `{"cpf": "${cpfVal}", "status": "ativo", "plano": "Enterprise"}`,
+              found: null
+            }
+          ],
+          summary: `Consulta REST concluída via <strong>consultar_cliente(cpf="${escapeXml(cpfVal)}")</strong> com HTTP 200 OK. Credenciais e URL foram protegidas no backend e os dados cadastrais retornaram estruturados.`
+        },
+
+        web_search: {
+          label: "3.5 Pesquisa na Internet (Tavily web_search)",
+          nodes: [
+            { id: "sup", icon: "🧭", title: "Supervisor", sub: "Identifica fonte externa" },
+            { id: "res", icon: "🔎", title: "Agente Pesquisador", sub: "Formula query web" },
+            { id: "tavily", icon: "🌐", title: "Tavily Search", sub: "max_results=5" },
+            { id: "rank", icon: "📊", title: "Ranqueamento", sub: "Separa fonte externa" }
+          ],
+          steps: [
+            {
+              nodeId: "sup",
+              title: "Classificação de fonte externa",
+              tag: "Regra #5",
+              desc: "A solicitação exige informações públicas atualizadas fora dos bancos internos.",
+              code: `route -> Agente Pesquisador (fonte_externa=True)`,
+              found: null
+            },
+            {
+              nodeId: "res",
+              title: "Otimização da query de busca externa",
+              tag: "app/tools/integrations/web_search.py",
+              desc: `Preparando consulta otimizada para TavilySearchResults a partir de "${cleanQ.slice(0, 50)}".`,
+              code: `web_search.invoke({"query": "${cleanQ.slice(0, 55)}"})`,
+              found: null
+            },
+            {
+              nodeId: "tavily",
+              title: "Varredura em fontes web via Tavily (max_results=5)",
+              tag: "TavilySearchResults",
+              desc: "Coletando artigos recentes, relatórios de mercado e índices de relevância...",
+              code: `TavilySearchResults(max_results=5) -> 5 documentos externos retornados (380ms)`,
+              found: [
+                {
+                  source: "Externo: Web (Tavily)",
+                  type: "external",
+                  score: "93% relevância",
+                  pct: 93,
+                  title: "Tendências de IA Corporativa & Agentes Autônomos 2026",
+                  body: "Adoção de orquestradores multiagentes com LangGraph cresceu 64% em operações de backoffice e análise comercial."
+                },
+                {
+                  source: "Externo: Web (Tavily)",
+                  type: "external",
+                  score: "87% relevância",
+                  pct: 87,
+                  title: "Panorama do Mercado SaaS B2B no 2º Semestre",
+                  body: "Empresas que integram RAG em pgvector com dados transacionais reduzem em 41% o tempo de geração de relatórios."
+                }
+              ]
+            },
+            {
+              nodeId: "rank",
+              title: "Rotulagem explícita de origem externa",
+              tag: "Verificação",
+              desc: "Fontes externas marcadas claramente para não se misturarem com dados internos.",
+              code: `tag_sources(results, origin="EXTERNO_WEB")`,
+              found: null
+            }
+          ],
+          summary: `Pesquisa externa via <strong>TavilySearchResults</strong> concluída para <em>"${escapeXml(cleanQ)}"</em>. Foram encontradas 2 referências web recentes devidamente marcadas como <strong>fontes externas</strong>.`
+        },
+
+        python_process: {
+          label: "3.6 Execução de Processo Python (gerar_relatorio_vendas)",
+          nodes: [
+            { id: "sup", icon: "🧭", title: "Supervisor", sub: "Detecta ação interna" },
+            { id: "params", icon: "🧩", title: "Parâmetros", sub: "mes=10, ano=2026" },
+            { id: "exec", icon: "⚙️", title: "Serviço Python", sub: "gerar_relatorio_vendas" },
+            { id: "out", icon: "✅", title: "Artefato", sub: "relatorio_gerado" }
+          ],
+          steps: [
+            {
+              nodeId: "sup",
+              title: "Mapeamento para ferramenta de processo interno",
+              tag: "app/tools/processes/reports.py",
+              desc: `Modelo seleciona gerar_relatorio_vendas sem precisar conhecer a implementação interna.`,
+              code: `@tool def gerar_relatorio_vendas(mes: int, ano: int)`,
+              found: null
+            },
+            {
+              nodeId: "params",
+              title: "Extração e validação de parâmetros tipados",
+              tag: "Pydantic Schema",
+              desc: "Extraindo mês e ano da solicitação do usuário com validação de tipo.",
+              code: `params = {"mes": 10, "ano": 2026}`,
+              found: null
+            },
+            {
+              nodeId: "exec",
+              title: "Executando serviço interno Python de relatórios",
+              tag: "Python Worker",
+              desc: "Consolidando séries de faturamento, impostos e exportando resumo operacional...",
+              code: `resultado = gerar_relatorio_vendas.invoke({"mes": 10, "ano": 2026})`,
+              found: [
+                {
+                  source: "Interno: Processo Python",
+                  type: "internal",
+                  score: "Status: OK",
+                  pct: 100,
+                  title: "Relatório de Vendas — Outubro/2026",
+                  body: '{"mes": 10, "ano": 2026, "status": "relatorio_gerado", "arquivo": "storage/relatorio_10_2026.pdf"}'
+                }
+              ]
+            },
+            {
+              nodeId: "out",
+              title: "Registro de auditoria e retorno",
+              tag: "executions table",
+              desc: "Execução gravada na tabela executions do PostgreSQL.",
+              code: `INSERT INTO executions (status, output_payload) VALUES ('completed', ...)`,
+              found: null
+            }
+          ],
+          summary: `Processo Python <strong>gerar_relatorio_vendas(mes=10, ano=2026)</strong> executado com sucesso, retornando <code>status: "relatorio_gerado"</code>.`
+        },
+
+        database_sql: {
+          label: "Banco de Dados PostgreSQL (consultar_vendas)",
+          nodes: [
+            { id: "sup", icon: "🧭", title: "Supervisor", sub: "Roteia para Dados" },
+            { id: "agent", icon: "🗄️", title: "Agente de Dados", sub: "consultar_vendas" },
+            { id: "sql", icon: "⚡", title: "Query SQL", sub: "PostgreSQL 16" },
+            { id: "res", icon: "📈", title: "Agregação", sub: "Métricas do mês" }
+          ],
+          steps: [
+            {
+              nodeId: "sup",
+              title: "Seleção do Agente de Dados",
+              tag: "app/tools/database/postgres.py",
+              desc: `Solicitação "${cleanQ.slice(0, 50)}" direcionada para consulta transacional segura.`,
+              code: `tool_call: consultar_vendas(mes=10, ano=2026)`,
+              found: null
+            },
+            {
+              nodeId: "agent",
+              title: "Preparação de consulta parametrizada",
+              tag: "SQLAlchemy Session",
+              desc: "Gerando query SQL segura com bind parameters (protegida contra SQL Injection).",
+              code: `SELECT COUNT(*), SUM(valor) FROM vendas WHERE mes = :mes AND ano = :ano`,
+              found: null
+            },
+            {
+              nodeId: "sql",
+              title: "Execução no container PostgreSQL (pg16)",
+              tag: "127.0.0.1:5432",
+              desc: "Varrendo índice temporal e consolidando registros de outubro...",
+              code: `PostgreSQL -> 312 pedidos processados em 18ms`,
+              found: [
+                {
+                  source: "Interno: PostgreSQL",
+                  type: "internal",
+                  score: "18ms latency",
+                  pct: 95,
+                  title: "Faturamento Consolidado — Outubro/2026",
+                  body: "Receita bruta: R$ 482.900,00 | 312 pedidos fechados | Ticket médio: R$ 1.547,75 (+11,4% vs setembro)."
+                }
+              ]
+            },
+            {
+              nodeId: "res",
+              title: "Dados retornados ao orquestrador",
+              tag: "JSON Result",
+              desc: "Métricas validadas prontas para apresentação.",
+              code: `{"fonte": "PostgreSQL", "mes": 10, "receita": 482900.00}`,
+              found: null
+            }
+          ],
+          summary: `Consulta ao <strong>PostgreSQL (consultar_vendas)</strong> concluída: em outubro foram registrados <strong>312 pedidos</strong> totalizando <strong>R$ 482.900,00</strong> (+11,4% sobre o mês anterior).`
+        },
+
+        multiagent: {
+          label: "Modelo B: Arquitetura Multiagente Paralela (LangGraph)",
+          isMultiagent: true,
+          nodes: [
+            { id: "sup", icon: "🧭", title: "Agente Supervisor", sub: "Interpreta e distribui" },
+            { id: "data", icon: "🗄️", title: "Agente de Dados", sub: "SQL / consultar_vendas" },
+            { id: "doc", icon: "📄", title: "Agente Documental", sub: "PDF + RAG (pgvector)" },
+            { id: "web", icon: "🌐", title: "Agente Pesquisador", sub: "Web / Tavily Search" },
+            { id: "agg", icon: "✨", title: "Agregador", sub: "Consolida respostas" }
+          ],
+          steps: [
+            {
+              nodeId: "sup",
+              title: "1. Agente Supervisor decompõe a solicitação",
+              tag: "LangGraph StateGraph",
+              desc: `Analisando "${cleanQ.slice(0, 62)}..." e dividindo em 3 subtarefas paralelas.`,
+              code: `plan = [AgenteDados(outubro), AgenteDocumental(relatorio), AgentePesquisador(mercado)]`,
+              found: null
+            },
+            {
+              nodeId: "data",
+              title: "2a. [Paralelo] Agente de Dados consulta faturamento",
+              tag: "consultar_vendas (SQL)",
+              desc: "Executando consulta SQL no PostgreSQL para obter o faturamento real de outubro.",
+              code: `consultar_vendas(mes=10, ano=2026) -> R$ 482.900,00 (312 pedidos)`,
+              found: [
+                {
+                  source: "Interno: Agente de Dados (SQL)",
+                  type: "internal",
+                  score: "Dado Real SQL",
+                  pct: 98,
+                  title: "Faturamento de Outubro (PostgreSQL)",
+                  body: "Receita realizada em outubro: R$ 482.900,00 (+11,4% frente a setembro; 96,5% da meta mensal de R$ 500 mil)."
+                }
+              ]
+            },
+            {
+              nodeId: "doc",
+              title: "2b. [Paralelo] Agente Documental busca relatório comercial",
+              tag: "ler_pdf + pgvector",
+              desc: "Extraindo chunks e calculando similaridade semântica no relatório comercial em PDF.",
+              code: `pgvector_search("relatório comercial metas outubro") -> 94.2% match`,
+              found: [
+                {
+                  source: "Interno: Agente Documental (PDF/RAG)",
+                  type: "internal",
+                  score: "94.2% similaridade",
+                  pct: 94,
+                  title: "Relatório Comercial Q4 (Chunk #14)",
+                  body: "O relatório comercial previa R$ 500.000,00 para outubro com foco em expansão B2B e margem líquida de 24%."
+                }
+              ]
+            },
+            {
+              nodeId: "web",
+              title: "2c. [Paralelo] Agente Pesquisador busca tendências externas",
+              tag: "Tavily web_search",
+              desc: "Consultando fontes públicas na internet sobre tendências do mercado para contextualizar.",
+              code: `TavilySearchResults("tendências mercado B2B 2026") -> 5 fontes externas`,
+              found: [
+                {
+                  source: "Externo: Agente Pesquisador (Web)",
+                  type: "external",
+                  score: "91% relevância",
+                  pct: 91,
+                  title: "Tendência Externa de Mercado (Tavily)",
+                  body: "O setor B2B apresentou crescimento médio de 8,2% no trimestre, impulsionado por automação com agentes de IA."
+                }
+              ]
+            },
+            {
+              nodeId: "agg",
+              title: "3. Agregador combina fontes internas e externas",
+              tag: "Supervisor Reducer",
+              desc: "Cruzando faturamento SQL + meta do PDF + tendência externa com separação de origem.",
+              code: `synthesize(sql_data, rag_chunks, web_trends, distinguish_internal_external=True)`,
+              found: null
+            }
+          ],
+          summary: `<strong>Síntese do Agregador (Modelo B):</strong><br>
+          • <strong>Dado Interno (PostgreSQL):</strong> Outubro fechou em <strong>R$ 482.900,00</strong> (+11,4% vs mês anterior).<br>
+          • <strong>Dado Interno (PDF/RAG):</strong> O relatório comercial estipulava meta de <strong>R$ 500.000,00</strong> — atingimento de <strong>96,5%</strong>.<br>
+          • <strong>Fonte Externa (Web/Tavily):</strong> O crescimento de +11,4% superou a média de mercado de <strong>+8,2%</strong> no período.`
+        }
+      };
+
+      return PLANS[mode] || PLANS.multiagent;
+    }
+
+    function renderPipelineSkeleton(plan) {
+      if (plan.isMultiagent) {
+        pipelineBoard.innerHTML = `
+          <div class="pipeline-multiagent-grid">
+            ${renderNodeCard(plan.nodes[0])}
+            <div class="pipeline-arrow" data-arrow="sup">&rarr;</div>
+            <div class="pipeline-parallel-lanes">
+              ${renderNodeCard(plan.nodes[1])}
+              ${renderNodeCard(plan.nodes[2])}
+              ${renderNodeCard(plan.nodes[3])}
+            </div>
+            <div class="pipeline-arrow" data-arrow="agg">&rarr;</div>
+            ${renderNodeCard(plan.nodes[4])}
+          </div>
+        `;
+      } else {
+        pipelineBoard.innerHTML = `
+          <div class="pipeline-linear-flow">
+            ${plan.nodes.map((n, i) => `
+              ${renderNodeCard(n)}
+              ${i < plan.nodes.length - 1 ? `<div class="pipeline-arrow" data-arrow="${n.id}">&rarr;</div>` : ""}
+            `).join("")}
+          </div>
+        `;
+      }
+    }
+
+    function renderNodeCard(n) {
+      return `
+        <div class="pipeline-node-card" data-node-id="${n.id}">
+          <span class="pipeline-node-icon">${n.icon}</span>
+          <div>
+            <div class="pipeline-node-title">${escapeXml(n.title)}</div>
+            <div class="pipeline-node-sub">${escapeXml(n.sub)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function resetSearchUI(plan) {
+      if (activeTimer) {
+        clearInterval(activeTimer);
+        activeTimer = null;
+      }
+      renderPipelineSkeleton(plan);
+      traceList.innerHTML = "";
+      foundItems.innerHTML = "";
+      aggregatorBox.style.display = "none";
+      aggregatorContent.innerHTML = "";
+      progressFill.style.width = "0%";
+      progressLabel.textContent = "0% — Preparando busca...";
+      stepCounter.textContent = `0 / ${plan.steps.length} etapas`;
+      sourceCounter.textContent = "0 fontes";
+      statusBadge.className = "agent-status-pill is-searching";
+      statusText.textContent = `Buscando (${plan.label})...`;
+    }
+
+    function runAnimatedSearch() {
+      const query = searchInput.value.trim();
+      const selectedMode = scenarioSelect.value === "auto"
+        ? detectScenarioFromQuery(query)
+        : scenarioSelect.value;
+
+      const plan = buildScenarioPlan(selectedMode, query);
+      resetSearchUI(plan);
+
+      let stepIdx = 0;
+      let totalFoundCount = 0;
+      const totalSteps = plan.steps.length;
+
+      function executeNextStep() {
+        if (stepIdx >= totalSteps) {
+          clearInterval(activeTimer);
+          activeTimer = null;
+          pipelineBoard.querySelectorAll('.pipeline-node-card').forEach(c => {
+            c.classList.remove('is-active');
+            c.classList.add('is-done');
+          });
+          pipelineBoard.querySelectorAll('.pipeline-arrow').forEach(a => {
+            a.classList.remove('is-active');
+            a.classList.add('is-done');
+          });
+          traceList.querySelectorAll('.agent-trace-item').forEach(el => el.classList.add('is-done'));
+
+          progressFill.style.width = "100%";
+          progressLabel.textContent = "100% — Busca e agregação concluídas";
+          statusBadge.className = "agent-status-pill is-done";
+          statusText.textContent = `Concluído (${totalFoundCount} fonte(s))`;
+          aggregatorBox.style.display = "block";
+          aggregatorContent.innerHTML = plan.summary;
+          return;
+        }
+
+        const step = plan.steps[stepIdx];
+        stepIdx++;
+
+        // Atualiza destaque do nó ativo no pipeline
+        pipelineBoard.querySelectorAll('.pipeline-node-card').forEach(card => {
+          if (card.dataset.nodeId === step.nodeId) {
+            card.classList.add('is-active');
+            card.classList.remove('is-done');
+          } else if (card.classList.contains('is-active')) {
+            card.classList.remove('is-active');
+            card.classList.add('is-done');
+          }
+        });
+
+        const pct = Math.round((stepIdx / totalSteps) * 100);
+        progressFill.style.width = `${pct}%`;
+        progressLabel.textContent = `${pct}% — ${step.title}`;
+        stepCounter.textContent = `${stepIdx} / ${totalSteps} etapas`;
+
+        // Adiciona etapa no rastreamento
+        const traceEl = document.createElement('div');
+        traceEl.className = 'agent-trace-item';
+        traceEl.innerHTML = `
+          <div class="agent-trace-head">
+            <span class="agent-trace-title">${escapeXml(step.title)}</span>
+            <span class="agent-trace-tag">${escapeXml(step.tag)}</span>
+          </div>
+          <div class="agent-trace-desc">${escapeXml(step.desc)}</div>
+          <div class="agent-trace-code">${escapeXml(step.code)}</div>
+        `;
+        traceList.appendChild(traceEl);
+        traceList.scrollTop = traceList.scrollHeight;
+
+        // Se a etapa encontrou informações, revela card(s) animados
+        if (step.found && step.found.length > 0) {
+          step.found.forEach(item => {
+            totalFoundCount++;
+            const card = document.createElement('div');
+            card.className = 'agent-found-card';
+            card.innerHTML = `
+              <div class="found-card-top">
+                <span class="found-source-badge ${item.type}">${escapeXml(item.source)}</span>
+                <span class="found-score">${escapeXml(item.score)}</span>
+              </div>
+              <div class="found-card-title">${escapeXml(item.title)}</div>
+              <div class="found-card-body">${escapeXml(item.body)}</div>
+              <div class="found-score-bar">
+                <div class="found-score-fill" style="width:${item.pct}%;"></div>
+              </div>
+            `;
+            foundItems.appendChild(card);
+          });
+          sourceCounter.textContent = `${totalFoundCount} fonte(s)`;
+          foundItems.scrollTop = foundItems.scrollHeight;
+        }
+      }
+
+      executeNextStep();
+      activeTimer = setInterval(executeNextStep, 950);
+    }
+
+    btnRun.addEventListener('click', runAnimatedSearch);
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        runAnimatedSearch();
+      }
+    });
+
+    btnClear.addEventListener('click', () => {
+      if (activeTimer) {
+        clearInterval(activeTimer);
+        activeTimer = null;
+      }
+      searchInput.value = "";
+      const plan = buildScenarioPlan(scenarioSelect.value === "auto" ? "multiagent" : scenarioSelect.value, "");
+      renderPipelineSkeleton(plan);
+      traceList.innerHTML = '<div class="agent-empty-state">Digite uma consulta acima e clique em <strong>Buscar &amp; Animar</strong>.</div>';
+      foundItems.innerHTML = '<div class="agent-empty-state">Nenhuma busca executada no momento.</div>';
+      aggregatorBox.style.display = "none";
+      progressFill.style.width = "0%";
+      progressLabel.textContent = "0% — Aguardando início da busca";
+      stepCounter.textContent = "0 / 0 etapas";
+      sourceCounter.textContent = "0 fontes";
+      statusBadge.className = "agent-status-pill";
+      statusText.textContent = "Pronto para buscar";
+    });
+
+    if (presetChips) {
+      presetChips.addEventListener('click', (e) => {
+        const chip = e.target.closest('.agent-preset-chip');
+        if (!chip) return;
+        presetChips.querySelectorAll('.agent-preset-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        searchInput.value = chip.dataset.query || "";
+        scenarioSelect.value = chip.dataset.scenario || "auto";
+        runAnimatedSearch();
+      });
+    }
+
+    // Render inicial do esqueleto do pipeline
+    renderPipelineSkeleton(buildScenarioPlan("multiagent", searchInput.value));
+  }
+
   init();
+  initAgentSearchScenario();
 });
