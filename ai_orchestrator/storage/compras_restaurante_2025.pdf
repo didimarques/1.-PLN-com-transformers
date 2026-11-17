@@ -1,0 +1,76 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 2119 >>
+stream
+BT
+/F2 14 Tf 50 780 Td (Compras do Restaurante ? 2025) Tj
+0 -22 Td /F1 10 Tf
+(Gerado em: 17/11/2026 03:18 UTC | AI Orchestrator \(Processo Python PDF\)) Tj 0 -15 Td
+(------------------------------------------------------------------------------) Tj 0 -15 Td
+() Tj 0 -15 Td
+(RELATÓRIO DE COMPRAS DO RESTAURANTE) Tj 0 -15 Td
+(Período: ano de 2025) Tj 0 -15 Td
+(Fonte interna: PostgreSQL, tabela compras_restaurante.) Tj 0 -15 Td
+() Tj 0 -15 Td
+(RESUMO ANUAL) Tj 0 -15 Td
+(Quantidade de compras registradas: 24) Tj 0 -15 Td
+(Total gasto: R$ 43.756,43) Tj 0 -15 Td
+() Tj 0 -15 Td
+(GASTOS POR CATEGORIA) Tj 0 -15 Td
+(Carnes & Proteínas: 6 compras; R$ 16.392,18) Tj 0 -15 Td
+(Bebidas: 4 compras; R$ 8.078,00) Tj 0 -15 Td
+(Grãos & Secos: 4 compras; R$ 6.116,75) Tj 0 -15 Td
+(Laticínios: 4 compras; R$ 5.592,00) Tj 0 -15 Td
+(Embalagens & Limpeza: 2 compras; R$ 4.063,50) Tj 0 -15 Td
+(Hortifruti: 4 compras; R$ 3.514,00) Tj 0 -15 Td
+() Tj 0 -15 Td
+(MAIORES COMPRAS REGISTRADAS) Tj 0 -15 Td
+(06/07/2025 | Carnes & Proteínas | Filé Mignon Resfriado | Frigorífico Serra Azul |) Tj 0 -15 Td
+(51,75 kg | R$ 4.372,88 | Boleto 15d) Tj 0 -15 Td
+(06/01/2025 | Carnes & Proteínas | Filé Mignon Resfriado | Frigorífico Serra Azul |) Tj 0 -15 Td
+(45,0 kg | R$ 3.802,50 | Boleto 30d) Tj 0 -15 Td
+(18/07/2025 | Carnes & Proteínas | Salmão Fresco Inteiro | Pescados Atlântico | 36,8 kg) Tj 0 -15 Td
+(| R$ 2.796,80 | PIX) Tj 0 -15 Td
+(18/10/2025 | Bebidas | Vinho Tinto Reserva | Importadora Vinhedos | 36,0 un | R$) Tj 0 -15 Td
+(2.448,00 | Boleto 15d) Tj 0 -15 Td
+(18/04/2025 | Bebidas | Vinho Tinto Reserva | Importadora Vinhedos | 36,0 un | R$) Tj 0 -15 Td
+(2.448,00 | Boleto 30d) Tj 0 -15 Td
+(18/01/2025 | Carnes & Proteínas | Salmão Fresco Inteiro | Pescados Atlântico | 32,0 kg) Tj 0 -15 Td
+(| R$ 2.432,00 | Cartão Corporativo) Tj 0 -15 Td
+(18/12/2025 | Embalagens & Limpeza | Embalagem Delivery Kraft | EcoPack Suprimentos |) Tj 0 -15 Td
+(16,1 cx | R$ 2.173,50 | Boleto 30d) Tj 0 -15 Td
+(18/06/2025 | Embalagens & Limpeza | Embalagem Delivery Kraft | EcoPack Suprimentos |) Tj 0 -15 Td
+(14,0 cx | R$ 1.890,00 | Boleto 15d) Tj 0 -15 Td
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000002491 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2627
+%%EOF

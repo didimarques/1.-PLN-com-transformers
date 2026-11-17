@@ -4,7 +4,7 @@ import json
 import time
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from app.core.memory import MemoryStore
@@ -76,9 +76,10 @@ Você possui ferramentas reais para:
 Regras obrigatórias:
 1. Limite-se ESTRITAMENTE ao que foi solicitado pelo usuário. Não consulte ferramentas ou fontes extras que não sejam necessárias para responder ao pedido.
 2. Nunca invente resultados, valores ou URLs.
-3. Se uma fonte (ex: PostgreSQL ou API) retornar indisponível, informe claramente o motivo retornado pela ferramenta.
-4. Diferencie sempre informações internas (arquivos/banco/processos) de informações externas (web/APIs públicas).
-5. Diretiva de modo atual: {mode_instruction}
+3. Use a Memória da conversa para conectar resultados já encontrados anteriormente às próximas chamadas de ferramentas (ex.: gerar um PDF a partir de uma busca anterior).
+4. Ao chamar `gerar_pdf_relatorio`, envie em `conteudo` os dados reais estruturados e limpos (sem markdown ou falas de chat), correspondendo exatamente ao resultado esperado pelo usuário.
+5. Diferencie sempre informações internas de informações externas.
+6. Diretiva de modo atual: {mode_instruction}
 """
 
 JAKE_PERALTA_PROMPT = """Você é o Detetive Jake Peralta, o Maestro investigativo de uma empresa do ramo financeiro de pagamentos digitais (fintech de PIX, cartões, conciliação, antifraude e chargeback).
@@ -127,14 +128,16 @@ def stream_langchain_flow(
     # 1. User Input
     yield emit_stage("user_input", "1. User Input", f'Comando recebido: "{query}" (modo: {mode})', 12)
 
-    # 2. Prompt Template + Memory load
-    history_raw = _memory_store.get_messages(session_id)[-6:]
+    # 2. Prompt Template + Memory load (preserva contexto completo e dados estruturados anteriores)
+    history_raw = _memory_store.get_messages(session_id)[-8:]
     history_msgs = []
     for m in history_raw:
         if m["role"] == "user":
             history_msgs.append(HumanMessage(content=m["content"]))
+        elif m["role"] == "assistant":
+            history_msgs.append(AIMessage(content=m["content"][:3000]))
         else:
-            history_msgs.append(SystemMessage(content=f"[Histórico] {m['content'][:300]}"))
+            history_msgs.append(SystemMessage(content=m["content"][:3000]))
 
     mode_instruction = MODE_INSTRUCTIONS.get(mode, MODE_INSTRUCTIONS["auto"])
     active_sys_prompt = JAKE_PERALTA_PROMPT if persona == "jake_peralta" else SYSTEM_PROMPT
@@ -245,7 +248,16 @@ def stream_langchain_flow(
         yield {"event": "tool_start", "tool": "gerar_pdf_relatorio", "category": "process", "args": {"titulo": query[:60]}}
         t_start = time.perf_counter()
         pdf_name = f"relatorio_{session_id}_{int(time.time())}.pdf"
-        pdf_body = final_text.strip() or json.dumps([te["result"] for te in tool_executions], ensure_ascii=False, indent=2)
+
+        structured_sections = []
+        for te in tool_executions:
+            if te["status"] == "ok" and te["tool"] != "gerar_pdf_relatorio":
+                structured_sections.append(f"[{te['tool']}]\n{json.dumps(te['result'], ensure_ascii=False, indent=2)}")
+        if not structured_sections and history_raw:
+            last_ctx = [m["content"] for m in reversed(history_raw) if m["role"] != "user"][:2]
+            structured_sections.extend(last_ctx)
+
+        pdf_body = "\n\n".join(structured_sections) if structured_sections else final_text.strip()
         pdf_res = gerar_pdf_relatorio.invoke({
             "titulo": f"Relatório — {query[:60]}",
             "conteudo": pdf_body,
@@ -272,8 +284,15 @@ def stream_langchain_flow(
         82,
     )
 
-    # 6. Memory
+    # 6. Memory (salva pergunta, dados coletados pelas ferramentas e resposta final)
     _memory_store.add_message(session_id, "user", query)
+    if tool_executions:
+        tool_mem = json.dumps(
+            [{"tool": te["tool"], "result": te["result"]} for te in tool_executions if te["status"] == "ok"],
+            ensure_ascii=False,
+            default=str,
+        )[:2500]
+        _memory_store.add_message(session_id, "system", f"[Memória de Tool Calling]\n{tool_mem}")
     _memory_store.add_message(session_id, "assistant", final_text)
 
     yield emit_stage(

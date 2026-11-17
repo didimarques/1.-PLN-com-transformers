@@ -149,6 +149,26 @@ def gerar_relatorio_vendas(mes: int, ano: int) -> dict:
     }
 
 
+def _clean_markdown_for_pdf(text: str) -> list[str]:
+    """Convert markdown/chat text into clean, readable report lines for PDF output."""
+    cleaned_lines: list[str] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        # Skip markdown table separator rows like |---|---|
+        if re.match(r"^\|[\s:\-\|]+\|$", line):
+            continue
+        # Convert markdown table row | A | B | C | -> A | B | C
+        if line.startswith("|") and line.endswith("|"):
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            line = "  |  ".join(cells)
+        # Convert headings ### Title -> TITLE
+        line = re.sub(r"^#{1,6}\s*", "", line)
+        # Strip bold/italic/code markers
+        line = line.replace("**", "").replace("__", "").replace("`", "")
+        cleaned_lines.append(line)
+    return cleaned_lines
+
+
 @tool
 def gerar_pdf_relatorio(
     titulo: str,
@@ -163,11 +183,12 @@ def gerar_pdf_relatorio(
 
     out_path = STORAGE_ROOT / safe_name
     timestamp = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
+    body_lines = _clean_markdown_for_pdf(conteudo)
     lines = [
         f"Gerado em: {timestamp} | AI Orchestrator (Processo Python PDF)",
         "-" * 78,
         "",
-        *conteudo.splitlines(),
+        *body_lines,
     ]
 
     pdf_bytes, num_pages = _build_simple_pdf(titulo, lines)
