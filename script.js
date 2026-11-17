@@ -3361,7 +3361,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!searchInput || !btnRun || !pipelineBoard) return;
 
-    const API_BASE = "http://127.0.0.1:8000";
+    const API_BASE = "http://127.0.0.1:8001";
     let activeTimer = null;
 
     const LC_NODES = [
@@ -3718,7 +3718,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!fab || !win || !form || !input || !messagesEl) return;
 
-    const API_BASE = "http://127.0.0.1:8000";
+    const API_BASE = "http://127.0.0.1:8001";
 
     function toggleChat(open) {
       if (open) {
