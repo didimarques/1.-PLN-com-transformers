@@ -10,4 +10,5 @@ pydantic-settings
 langchain-openai>=0.2.0
 langchain-core>=0.3.0
 httpx>=0.27.0
+pypdf>=5.0.0
 pytest>=8.0.0

@@ -1,14 +1,16 @@
 """FastAPI entry point, health checks, and LangChain real search orchestration API."""
 
+import json
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database.connection import get_db
-from app.services.orchestrator import run_langchain_flow
+from app.services.orchestrator import run_langchain_flow, stream_langchain_flow
 from app.tools.files.search import STORAGE_ROOT
 
 app = FastAPI(
@@ -30,6 +32,7 @@ class OrchestrateRequest(BaseModel):
     mode: str = "auto"
     session_id: str = "web-session"
     model_name: str | None = None
+    persona: str = "default"
 
 
 @app.get("/health")
@@ -90,6 +93,16 @@ def list_storage_files():
     return {"storage_dir": str(STORAGE_ROOT), "files": files}
 
 
+@app.get("/api/storage/download/{filename}")
+def download_storage_file(filename: str):
+    STORAGE_ROOT.mkdir(parents=True, exist_ok=True)
+    target = (STORAGE_ROOT / filename).resolve()
+    if not str(target).startswith(str(STORAGE_ROOT.resolve())) or not target.is_file():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado em storage/.")
+    media_type = "application/pdf" if target.suffix.lower() == ".pdf" else "application/octet-stream"
+    return FileResponse(path=str(target), filename=target.name, media_type=media_type)
+
+
 @app.post("/api/orchestrate")
 def orchestrate(payload: OrchestrateRequest):
     if not payload.query.strip():
@@ -100,6 +113,32 @@ def orchestrate(payload: OrchestrateRequest):
             mode=payload.mode,
             session_id=payload.session_id,
             model_name=payload.model_name,
+            persona=payload.persona,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/api/orchestrate/stream")
+def orchestrate_stream(payload: OrchestrateRequest):
+    if not payload.query.strip():
+        raise HTTPException(status_code=400, detail="A consulta não pode estar vazia.")
+
+    def event_generator():
+        try:
+            for ev in stream_langchain_flow(
+                query=payload.query,
+                mode=payload.mode,
+                session_id=payload.session_id,
+                model_name=payload.model_name,
+                persona=payload.persona,
+            ):
+                yield f"data: {json.dumps(ev, ensure_ascii=False, default=str)}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'event': 'error', 'detail': str(exc)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

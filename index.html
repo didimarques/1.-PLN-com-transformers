@@ -15,7 +15,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20261118">
+  <link rel="stylesheet" href="styles.css?v=20261121">
 </head>
 <body data-theme="light">
 
@@ -284,8 +284,8 @@
           <button type="button" class="preset-chip agent-preset-chip" data-scenario="files" data-query="Busque nos arquivos da pasta storage sobre arquitetura RAG e chunks.">📄 Arquivos (storage/)</button>
           <button type="button" class="preset-chip agent-preset-chip" data-scenario="web" data-query="Pesquise na internet o que são Redes Neurais Recorrentes e Transformers.">🌐 Web Search (Live)</button>
           <button type="button" class="preset-chip agent-preset-chip" data-scenario="api" data-query="Consulte o endereço do CEP 01001000 via API REST.">🔌 API REST (ViaCEP)</button>
-          <button type="button" class="preset-chip agent-preset-chip" data-scenario="database" data-query="Verifique o status do PostgreSQL, versão do pgvector e contagem das tabelas.">🗄️ Banco de Dados (PostgreSQL)</button>
-          <button type="button" class="preset-chip agent-preset-chip" data-scenario="process" data-query="Gere o relatório de vendas do mês 10 de 2026 usando o processo Python.">⚙️ Processo Python</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="database" data-query="Consulte os gastos financeiros de compras do restaurante em 2025 e 2026 no banco de dados.">🗄️ Compras Restaurante (2025/2026)</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="auto" data-query="Consulte as compras do restaurante em 2025 e 2026 no banco de dados e gere um relatório em PDF com os totais por categoria.">📄 Gerar PDF Restaurante</button>
         </div>
       </div>
 
@@ -846,6 +846,49 @@
     </div>
   </footer>
 
-  <script src="script.js?v=20261118"></script>
+  <!-- ==================== BUBBLE CHAT: DETETIVE JAKE PERALTA ==================== -->
+  <div class="jake-chat-widget" id="jakeChatWidget">
+    <button type="button" class="jake-chat-fab" id="jakeChatFab" title="Falar com o Detetive Jake Peralta (Pagamentos Digitais)">
+      <span class="jake-fab-avatar">🕵️‍♂️</span>
+      <span class="jake-fab-label">Jake Peralta &bull; Maestro</span>
+      <span class="jake-fab-dot"></span>
+    </button>
+
+    <div class="jake-chat-window" id="jakeChatWindow" style="display:none;">
+      <div class="jake-chat-header">
+        <div class="jake-header-info">
+          <div class="jake-avatar-badge">🕵️‍♂️</div>
+          <div>
+            <div class="jake-title">Detetive Jake Peralta</div>
+            <div class="jake-subtitle">Maestro &bull; Pagamentos Digitais &amp; Tool Calling</div>
+          </div>
+        </div>
+        <button type="button" class="jake-close-btn" id="jakeChatCloseBtn" title="Minimizar chat">&times;</button>
+      </div>
+
+      <div class="jake-quick-prompts" id="jakeQuickPrompts">
+        <button type="button" class="jake-quick-chip" data-msg="Investigue nos arquivos a política de chargeback, estorno PIX e taxas MDR.">🔍 Chargeback &amp; PIX</button>
+        <button type="button" class="jake-quick-chip" data-msg="Verifique as compras do restaurante em 2025 e 2026 no banco e gere um dossiê em PDF.">📄 Banco + PDF</button>
+        <button type="button" class="jake-quick-chip" data-msg="Pesquise na web o que é o arranjo PIX do Banco Central.">🌐 Web PIX</button>
+        <button type="button" class="jake-quick-chip" data-msg="Valide o endereço do CEP 01001000 via API REST.">🔌 Validar CEP</button>
+      </div>
+
+      <div class="jake-chat-messages" id="jakeChatMessages">
+        <div class="jake-msg jake-msg-bot">
+          <div class="jake-msg-bubble">
+            <strong>Cool, cool, cool!</strong> Sou o <strong>Detetive Jake Peralta</strong>, Maestro de investigações em <em>Pagamentos Digitais</em>.<br>
+            Me mande qualquer caso (PIX, chargeback, conciliação no PostgreSQL, APIs, Web ou dossiê em PDF) que eu aciono as ferramentas reais para resolver!
+          </div>
+        </div>
+      </div>
+
+      <form class="jake-chat-input-bar" id="jakeChatForm">
+        <input type="text" id="jakeChatInput" placeholder="Descreva o caso ou dúvida de pagamentos..." autocomplete="off">
+        <button type="submit" id="jakeChatSendBtn" class="jake-send-btn" title="Enviar ao Detetive Jake">Enviar</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js?v=20261121"></script>
 </body>
 </html>

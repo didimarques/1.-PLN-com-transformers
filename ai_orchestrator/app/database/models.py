@@ -4,7 +4,9 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     JSON,
@@ -149,3 +151,25 @@ class Execution(Base):
     conversation: Mapped["Conversation | None"] = relationship(back_populates="executions")
     agent: Mapped["Agent | None"] = relationship(back_populates="executions")
     tool: Mapped["Tool | None"] = relationship(back_populates="executions")
+
+
+class CompraRestaurante(Base):
+    __tablename__ = "compras_restaurante"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    data_compra: Mapped[datetime] = mapped_column(Date, nullable=False)
+    ano: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    mes: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    categoria: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    produto: Mapped[str] = mapped_column(String(150), nullable=False)
+    fornecedor: Mapped[str] = mapped_column(String(150), nullable=False)
+    quantidade: Mapped[float] = mapped_column(Float, nullable=False)
+    unidade: Mapped[str] = mapped_column(String(20), nullable=False)
+    valor_unitario: Mapped[float] = mapped_column(Float, nullable=False)
+    valor_total: Mapped[float] = mapped_column(Float, nullable=False)
+    forma_pagamento: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

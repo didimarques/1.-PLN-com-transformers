@@ -3439,12 +3439,50 @@ document.addEventListener('DOMContentLoaded', () => {
       traceList.scrollTop = traceList.scrollHeight;
     }
 
+    function formatConciseToolSummary(toolExec) {
+      const r = toolExec.result;
+      if (!r) return "Sem dados retornados.";
+      if (typeof r === "string") return r.slice(0, 320);
+
+      if (r.erro) return `Erro: ${r.erro}`;
+      if (toolExec.tool === "gerar_pdf_relatorio") {
+        return `PDF gerado: ${r.arquivo} (${r.paginas} pág., ${r.tamanho_bytes} bytes)`;
+      }
+      if ((toolExec.tool === "consultar_compras_restaurante" || toolExec.tool === "consultar_vendas") && r.resumo) {
+        const anos = (r.por_ano || []).map(a => `${a.ano}: R$ ${a.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`).join(" | ");
+        return `${r.resumo.qtd_compras} compras | Total: R$ ${Number(r.resumo.total_gasto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${anos ? ` (${anos})` : ""}`;
+      }
+      if (toolExec.tool === "buscar_em_arquivos" && Array.isArray(r.resultados)) {
+        if (!r.resultados.length) return "Nenhum trecho correspondente encontrado.";
+        return r.resultados.slice(0, 2).map(x => `[${x.arquivo} • ${x.similaridade}%] ${x.trecho.slice(0, 140)}...`).join("\n");
+      }
+      if (toolExec.tool === "web_search" && Array.isArray(r.resultados)) {
+        if (!r.resultados.length) return "Nenhum resultado web encontrado.";
+        return r.resultados.slice(0, 2).map(x => `• ${x.titulo}: ${(x.resumo || "").slice(0, 130)}...`).join("\n");
+      }
+      if (toolExec.tool === "consultar_cep" && r.dados) {
+        const d = r.dados;
+        return `${d.logradouro || ""} — ${d.bairro || ""}, ${d.localidade || ""}/${d.uf || ""} (CEP ${d.cep || ""})`;
+      }
+      if (toolExec.tool === "calcular_expressao") {
+        return `${r.expressao} = ${r.resultado}`;
+      }
+      return JSON.stringify(r).slice(0, 260);
+    }
+
     function appendFoundCard(toolExec) {
       const isExternal = toolExec.category === "web" || toolExec.category === "api";
       const badgeLabel = isExternal ? `Externo: ${toolExec.tool}` : `Interno: ${toolExec.tool}`;
-      const bodyStr = typeof toolExec.result === "string"
+      const summaryText = formatConciseToolSummary(toolExec);
+      const rawJson = typeof toolExec.result === "string"
         ? toolExec.result
         : JSON.stringify(toolExec.result, null, 2);
+
+      let pdfLinkHtml = "";
+      if (toolExec.tool === "gerar_pdf_relatorio" && toolExec.result && toolExec.result.arquivo) {
+        const fname = String(toolExec.result.arquivo).split("/").pop();
+        pdfLinkHtml = `<div style="margin-top:0.45rem;"><a href="${API_BASE}/api/storage/download/${encodeURIComponent(fname)}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:0.35rem 0.75rem;font-size:0.78rem;">📥 Baixar PDF (${escapeXml(fname)})</a></div>`;
+      }
 
       const card = document.createElement('div');
       card.className = 'agent-found-card';
@@ -3453,8 +3491,12 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="found-source-badge ${isExternal ? 'external' : 'internal'}">${escapeXml(badgeLabel)}</span>
           <span class="found-score">${toolExec.status === 'ok' ? 'OK' : 'ERRO'} &bull; ${toolExec.duration_ms} ms</span>
         </div>
-        <div class="found-card-title">Args: ${escapeXml(JSON.stringify(toolExec.args))}</div>
-        <pre class="agent-trace-code" style="white-space:pre-wrap;max-height:150px;overflow:auto;">${escapeXml(bodyStr.slice(0, 900))}</pre>
+        <div class="found-card-body" style="white-space:pre-line;">${escapeXml(summaryText)}</div>
+        ${pdfLinkHtml}
+        <details style="margin-top:0.25rem;font-size:0.72rem;color:var(--text-muted);">
+          <summary style="cursor:pointer;">Ver detalhes técnicos</summary>
+          <pre class="agent-trace-code" style="white-space:pre-wrap;max-height:130px;overflow:auto;">Args: ${escapeXml(JSON.stringify(toolExec.args))}\n${escapeXml(rawJson.slice(0, 700))}</pre>
+        </details>
         <div class="found-score-bar">
           <div class="found-score-fill" style="width:${toolExec.status === 'ok' ? 100 : 35}%;"></div>
         </div>
@@ -3512,143 +3554,105 @@ document.addEventListener('DOMContentLoaded', () => {
       applyStep(2, true); // Passo 3: Self-Attention
       setMoeBridgeStage("attn");
 
-      // Anima etapas iniciais 1 -> 4 enquanto a chamada real ao FastAPI/LangChain acontece
-      const preStages = [
-        { id: "user_input", pct: 12, label: "1. User Input", tag: "Command", desc: `Entrada recebida: "${query}"`, code: `POST /api/orchestrate {"mode": "${mode}", "model": "${modelName}"}` },
-        { id: "prompt_template", pct: 24, label: "2. Prompt Template", tag: "ChatPromptTemplate", desc: "Formatando instruções do sistema, histórico de memória e variáveis.", code: `prompt_template.format_messages(mode="${mode}", input=...)` },
-        { id: "llm_model", pct: 36, label: "3. LLM / Chat Model", tag: modelName, desc: `Conectando via OpenRouter ao modelo ${modelName} com 10 ferramentas vinculadas.`, code: `llm.bind_tools([buscar_em_arquivos, ler_arquivo, web_search, consultar_api, ...])` },
-        { id: "chain", pct: 48, label: "4. Chain (Pipeline)", tag: "Tool Calling Loop", desc: "Transformer Attention -> MoE Router preparando seleção de especialistas...", code: `chain.invoke(messages)` }
-      ];
+      let toolCount = 0;
+      const stageOrder = ["user_input", "prompt_template", "llm_model", "chain", "agent_tools", "memory", "output"];
 
-      let preIdx = 0;
-      function stepPreAnimation() {
-        if (preIdx >= preStages.length) return;
-        const st = preStages[preIdx];
-        if (preIdx > 0) setNodeState(preStages[preIdx - 1].id, 'is-done');
-        setNodeState(st.id, 'is-active');
-        if (st.id === "llm_model" || st.id === "chain") {
-          setMoeBridgeStage("router");
-          applyStep(4, true); // Passo 5: MoE Router ativo no diagrama SVG principal
+      function handleStreamEvent(ev) {
+        if (ev.event === "stage") {
+          const idx = stageOrder.indexOf(ev.stage);
+          if (idx > 0) setNodeState(stageOrder[idx - 1], 'is-done');
+          setNodeState(ev.stage, ev.stage === "output" ? 'is-done' : 'is-active');
+
+          if (ev.stage === "llm_model" || ev.stage === "chain") {
+            setMoeBridgeStage("router");
+            applyStep(4, true); // Passo 5: MoE Router ativo no SVG principal
+          } else if (ev.stage === "agent_tools") {
+            setMoeBridgeStage("sum");
+            const bridge = document.getElementById('lcToolsBridge');
+            if (bridge) bridge.classList.remove('is-active');
+          }
+
+          progressFill.style.width = `${ev.pct || 0}%`;
+          progressLabel.textContent = `${ev.pct || 0}% — ${ev.label}`;
+          stepCounter.textContent = `${Math.max(1, idx + 1)} / 7 etapas`;
+          appendTrace(ev.label, ev.stage, ev.detail, null);
+        } else if (ev.event === "tool_start") {
+          setNodeState("chain", "is-done");
+          setNodeState("agent_tools", "is-active");
+          setMoeBridgeStage("experts");
+          const bridge = document.getElementById('lcToolsBridge');
+          if (bridge) bridge.classList.add('is-active');
+
+          setToolState(ev.category, "is-active");
+          if (!state.activeMoeCategories.includes(ev.category)) {
+            state.activeMoeCategories.push(ev.category);
+          }
+          renderFlowchart(); // Acende o Expert correspondente no diagrama MoE em tempo real!
+
+          progressFill.style.width = `${Math.min(78, 52 + toolCount * 8)}%`;
+          progressLabel.textContent = `Executando em tempo real: ${ev.tool}()...`;
+          stepCounter.textContent = "5 / 7 etapas";
+          appendTrace(
+            `5. MoE Expert (${ev.category}) -> ${ev.tool}()`,
+            "Executando agora",
+            `Buscando apenas a informação solicitada via ${ev.tool}...`,
+            `${ev.tool}(${JSON.stringify(ev.args)})`
+          );
+        } else if (ev.event === "tool_result") {
+          toolCount++;
+          setToolState(ev.category, "is-done");
+          sourceCounter.textContent = `${toolCount} tool call(s)`;
+          appendFoundCard(ev);
+        } else if (ev.event === "output") {
+          document.querySelectorAll('#agentMoeBridgeSteps .moe-chip').forEach(c => {
+            c.classList.remove('is-active');
+            c.classList.add('is-done');
+          });
+          traceList.querySelectorAll('.agent-trace-item').forEach(el => el.classList.add('is-done'));
+          statusBadge.className = "agent-status-pill is-done";
+          statusText.textContent = `Concluído (${toolCount} tool call(s) reais)`;
+          progressLabel.textContent = `100% — Concluído em ${ev.duration_ms} ms`;
+          aggregatorBox.style.display = "block";
+          aggregatorContent.innerHTML = escapeXml(ev.final_answer || "").replace(/\n/g, "<br>");
+          initKaTeX();
+        } else if (ev.event === "error") {
+          throw new Error(ev.detail || "Erro no stream LangChain");
         }
-        progressFill.style.width = `${st.pct}%`;
-        progressLabel.textContent = `${st.pct}% — ${st.label}`;
-        stepCounter.textContent = `${preIdx + 1} / 7 etapas`;
-        appendTrace(st.label, st.tag, st.desc, st.code);
-        preIdx++;
       }
 
-      stepPreAnimation();
-      const preTimer = setInterval(stepPreAnimation, 420);
-
       try {
-        const resp = await fetch(`${API_BASE}/api/orchestrate`, {
+        const resp = await fetch(`${API_BASE}/api/orchestrate/stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ query, mode, session_id: "web-ui", model_name: modelName })
         });
 
-        clearInterval(preTimer);
-        while (preIdx < preStages.length) {
-          stepPreAnimation();
-        }
-        preStages.forEach(s => setNodeState(s.id, 'is-done'));
-
-        if (!resp.ok) {
+        if (!resp.ok || !resp.body) {
           const errData = await resp.json().catch(() => ({ detail: resp.statusText }));
           throw new Error(errData.detail || `HTTP ${resp.status}`);
         }
 
-        const data = await resp.json();
-        const tools = data.tool_executions || [];
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
 
-        // Etapa 5: Agent & Tools (anima cada tool call real e acende os Experts correspondentes no MoE!)
-        setNodeState("agent_tools", "is-active");
-        setMoeBridgeStage("experts");
-        const bridge = document.getElementById('lcToolsBridge');
-        if (bridge) bridge.classList.add('is-active');
-
-        let tIdx = 0;
-        function revealNextTool() {
-          if (tIdx >= tools.length) {
-            clearInterval(activeTimer);
-            activeTimer = null;
-            setNodeState("agent_tools", "is-done");
-            setMoeBridgeStage("sum");
-            if (bridge) bridge.classList.remove('is-active');
-            tools.forEach(t => setToolState(t.category, "is-done"));
-            renderFlowchart();
-
-            // Etapa 6: Memory
-            setNodeState("memory", "is-done");
-            progressFill.style.width = "88%";
-            progressLabel.textContent = "88% — 6. Memory (Contexto atualizado)";
-            stepCounter.textContent = "6 / 7 etapas";
-            appendTrace(
-              "6. Memory (Contexto Salvo)",
-              `sessão: ${data.session_id}`,
-              `Histórico atualizado no MemoryStore (${data.memory_count} mensagens armazenadas).`,
-              `memory.add_message("${data.session_id}", user + assistant)`
-            );
-
-            // Etapa 7: Output
-            setTimeout(() => {
-              setNodeState("output", "is-done");
-              document.querySelectorAll('#agentMoeBridgeSteps .moe-chip').forEach(c => {
-                c.classList.remove('is-active');
-                c.classList.add('is-done');
-              });
-              progressFill.style.width = "100%";
-              progressLabel.textContent = `100% — 7. Output concluído em ${data.duration_ms} ms`;
-              stepCounter.textContent = "7 / 7 etapas";
-              appendTrace(
-                "7. Output (Resposta Final)",
-                `${data.duration_ms} ms`,
-                "Saída somada no nó (+) do MoE e consolidada pelo LangChain.",
-                null
-              );
-              traceList.querySelectorAll('.agent-trace-item').forEach(el => el.classList.add('is-done'));
-              statusBadge.className = "agent-status-pill is-done";
-              statusText.textContent = `Concluído (${tools.length} tool call(s) reais)`;
-              aggregatorBox.style.display = "block";
-              aggregatorContent.innerHTML = escapeXml(data.final_answer).replace(/\n/g, "<br>");
-              initKaTeX();
-            }, 450);
-            return;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+          for (const chunk of lines) {
+            const dataLine = chunk.split("\n").find(l => l.startsWith("data: "));
+            if (!dataLine) continue;
+            const parsed = JSON.parse(dataLine.slice(6));
+            handleStreamEvent(parsed);
           }
-
-          const tc = tools[tIdx++];
-          setToolState(tc.category, "is-active");
-          if (!state.activeMoeCategories.includes(tc.category)) {
-            state.activeMoeCategories.push(tc.category);
-          }
-          renderFlowchart(); // Ilumina no SVG principal o Expert do MoE correspondente à tool!
-
-          const pct = Math.min(82, 52 + Math.round((tIdx / Math.max(1, tools.length)) * 28));
-          progressFill.style.width = `${pct}%`;
-          progressLabel.textContent = `${pct}% — 5. MoE Expert + Tool: ${tc.tool}()`;
-          stepCounter.textContent = "5 / 7 etapas";
-          sourceCounter.textContent = `${tIdx} tool call(s)`;
-
-          appendTrace(
-            `5. MoE Expert (${tc.category}) -> ${tc.tool}`,
-            `${tc.category} • ${tc.duration_ms} ms`,
-            `O Transformer roteou via MoE para o especialista de "${tc.category}" e executou ${tc.tool}().`,
-            `${tc.tool}(${JSON.stringify(tc.args)})`
-          );
-          appendFoundCard(tc);
-        }
-
-        if (tools.length === 0) {
-          revealNextTool();
-        } else {
-          revealNextTool();
-          activeTimer = setInterval(revealNextTool, 700);
         }
       } catch (err) {
-        clearInterval(preTimer);
         statusBadge.className = "agent-status-pill";
         statusText.textContent = "Backend FastAPI offline ou erro";
-        progressLabel.textContent = "Erro ao conectar em http://127.0.0.1:8000/api/orchestrate";
+        progressLabel.textContent = "Erro ao conectar em http://127.0.0.1:8000/api/orchestrate/stream";
         appendTrace(
           "Backend FastAPI não acessível",
           "http://127.0.0.1:8000",
@@ -3701,6 +3705,146 @@ document.addEventListener('DOMContentLoaded', () => {
     renderLangChainFlowSkeleton();
   }
 
+  // ==================== 7. BUBBLE CHAT: DETETIVE JAKE PERALTA ====================
+  function initJakePeraltaBubbleChat() {
+    const fab = document.getElementById('jakeChatFab');
+    const win = document.getElementById('jakeChatWindow');
+    const closeBtn = document.getElementById('jakeChatCloseBtn');
+    const form = document.getElementById('jakeChatForm');
+    const input = document.getElementById('jakeChatInput');
+    const sendBtn = document.getElementById('jakeChatSendBtn');
+    const messagesEl = document.getElementById('jakeChatMessages');
+    const quickPrompts = document.getElementById('jakeQuickPrompts');
+
+    if (!fab || !win || !form || !input || !messagesEl) return;
+
+    const API_BASE = "http://127.0.0.1:8000";
+
+    function toggleChat(open) {
+      if (open) {
+        win.style.display = "flex";
+        fab.style.display = "none";
+        input.focus();
+      } else {
+        win.style.display = "none";
+        fab.style.display = "flex";
+      }
+    }
+
+    fab.addEventListener('click', () => toggleChat(true));
+    if (closeBtn) closeBtn.addEventListener('click', () => toggleChat(false));
+
+    function appendUserBubble(text) {
+      const div = document.createElement('div');
+      div.className = 'jake-msg jake-msg-user';
+      div.innerHTML = `<div class="jake-msg-bubble">${escapeXml(text)}</div>`;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function appendThinkingBubble() {
+      const div = document.createElement('div');
+      div.className = 'jake-msg jake-msg-bot';
+      div.innerHTML = `
+        <div class="jake-msg-bubble jake-thinking-bubble">
+          <span>🕵️‍♂️ <strong>Jake Peralta está investigando</strong></span>
+          <span class="jake-typing-dots"><span></span><span></span><span></span></span>
+        </div>
+      `;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return div;
+    }
+
+    function formatJakeMarkdown(rawText) {
+      return escapeXml(rawText || "")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\n/g, "<br>");
+    }
+
+    async function sendToJake(text) {
+      const clean = (text || "").trim();
+      if (!clean) return;
+
+      appendUserBubble(clean);
+      input.value = "";
+      sendBtn.disabled = true;
+
+      // Sincroniza o diagrama principal Transformer + MoE em segundo plano
+      promptInput.value = clean;
+      state.prompt = clean;
+      state.activeMoeCategories = [];
+      updatePromptStats();
+      applyStep(4, true);
+
+      const botDiv = appendThinkingBubble();
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/orchestrate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: clean,
+            mode: "auto",
+            session_id: "jake-peralta-session",
+            model_name: "openai/gpt-6.1-sol",
+            persona: "jake_peralta"
+          })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+          throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        const tools = data.tool_executions || [];
+        state.activeMoeCategories = [...new Set(tools.map(t => t.category))];
+        renderFlowchart();
+
+        const pdfLinksHtml = tools
+          .filter(t => t.tool === "gerar_pdf_relatorio" && t.result && t.result.arquivo)
+          .map(t => {
+            const fname = String(t.result.arquivo).split("/").pop();
+            return `<div style="margin-top:0.55rem;"><a href="${API_BASE}/api/storage/download/${encodeURIComponent(fname)}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:0.35rem 0.75rem;font-size:0.78rem;">📥 Baixar PDF (${escapeXml(fname)})</a></div>`;
+          })
+          .join("");
+
+        const answerHtml = formatJakeMarkdown(data.final_answer);
+        botDiv.innerHTML = `
+          <div class="jake-msg-bubble">
+            <div>${answerHtml}</div>
+            ${pdfLinksHtml}
+          </div>
+        `;
+      } catch (err) {
+        botDiv.innerHTML = `
+          <div class="jake-msg-bubble">
+            <strong>Ops!</strong> Não consegui concluir a investigação agora (${escapeXml(err.message)}). Verifique se o servidor FastAPI está ativo.
+          </div>
+        `;
+      } finally {
+        sendBtn.disabled = false;
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      sendToJake(input.value);
+    });
+
+    if (quickPrompts) {
+      quickPrompts.addEventListener('click', (e) => {
+        const chip = e.target.closest('.jake-quick-chip');
+        if (!chip) return;
+        sendToJake(chip.dataset.msg || chip.textContent);
+      });
+    }
+  }
+
   init();
   initAgentSearchScenario();
+  initJakePeraltaBubbleChat();
 });

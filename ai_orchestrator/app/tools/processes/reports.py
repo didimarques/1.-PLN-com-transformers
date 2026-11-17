@@ -1,7 +1,9 @@
-"""Real Python process tools (report generation and safe calculator)."""
+"""Real Python process tools (PDF generator, report generation, and safe calculator)."""
 
 import ast
 import operator
+import re
+import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
 from langchain_core.tools import tool
@@ -27,6 +29,88 @@ def _eval_ast(node):
     if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS:
         return _OPS[type(node.op)](_eval_ast(node.operand))
     raise ValueError("Expressão matemática não suportada.")
+
+
+def _pdf_escape(text_line: str) -> bytes:
+    """Encode line in Latin-1 (WinAnsi) and escape PDF string delimiters."""
+    safe = text_line.encode("latin-1", errors="replace")
+    out = bytearray()
+    for b in safe:
+        if b in (40, 41, 92):  # '(', ')', '\'
+            out.append(92)
+        out.append(b)
+    return bytes(out)
+
+
+def _build_simple_pdf(title: str, lines: list[str]) -> tuple[bytes, int]:
+    """Generate a valid multi-page PDF 1.4 document in pure Python (WinAnsiEncoding)."""
+    wrapped: list[str] = []
+    for raw_line in lines:
+        if not raw_line.strip():
+            wrapped.append("")
+        else:
+            wrapped.extend(textwrap.wrap(raw_line, width=86) or [""])
+
+    lines_per_page = 46
+    pages = [wrapped[i:i + lines_per_page] for i in range(0, max(1, len(wrapped)), lines_per_page)]
+
+    objects: list[bytes] = []
+    # 1: Catalog, 2: Pages, 3: FontRegular, 4: FontBold
+    objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
+    objects.append(b"")  # placeholder for /Pages
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>")
+
+    page_obj_ids: list[int] = []
+    for p_idx, page_lines in enumerate(pages):
+        stream_parts = [b"BT"]
+        if p_idx == 0:
+            stream_parts.append(b"/F2 14 Tf 50 780 Td (" + _pdf_escape(title) + b") Tj")
+            stream_parts.append(b"0 -22 Td /F1 10 Tf")
+        else:
+            stream_parts.append(b"/F1 10 Tf 50 780 Td")
+
+        for ln in page_lines:
+            stream_parts.append(b"(" + _pdf_escape(ln) + b") Tj 0 -15 Td")
+
+        stream_parts.append(b"ET")
+        stream_bytes = b"\n".join(stream_parts)
+
+        content_id = len(objects) + 1
+        objects.append(
+            f"<< /Length {len(stream_bytes)} >>\nstream\n".encode("ascii")
+            + stream_bytes
+            + b"\nendstream"
+        )
+
+        page_id = len(objects) + 1
+        page_obj_ids.append(page_id)
+        objects.append(
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            f"/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> "
+            f"/Contents {content_id} 0 R >>".encode("ascii")
+        )
+
+    kids_str = " ".join(f"{pid} 0 R" for pid in page_obj_ids)
+    objects[1] = f"<< /Type /Pages /Kids [{kids_str}] /Count {len(page_obj_ids)} >>".encode("ascii")
+
+    pdf_buf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets: list[int] = [0]
+    for idx, obj_body in enumerate(objects, start=1):
+        offsets.append(len(pdf_buf))
+        pdf_buf.extend(f"{idx} 0 obj\n".encode("ascii"))
+        pdf_buf.extend(obj_body)
+        pdf_buf.extend(b"\nendobj\n")
+
+    xref_pos = len(pdf_buf)
+    pdf_buf.extend(f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode("ascii"))
+    for off in offsets[1:]:
+        pdf_buf.extend(f"{off:010d} 00000 n \n".encode("ascii"))
+
+    pdf_buf.extend(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n".encode("ascii")
+    )
+    return bytes(pdf_buf), len(pages)
 
 
 @tool
@@ -62,4 +146,38 @@ def gerar_relatorio_vendas(mes: int, ano: int) -> dict:
         "ano": ano,
         "status": "relatorio_gerado",
         "arquivo": f"storage/{filename}",
+    }
+
+
+@tool
+def gerar_pdf_relatorio(
+    titulo: str,
+    conteudo: str,
+    nome_arquivo: str = "relatorio_financeiro_restaurante.pdf",
+) -> dict:
+    """Processo Python real que gera um arquivo PDF formatado em storage/ com os dados e análises solicitadas."""
+    STORAGE_ROOT.mkdir(parents=True, exist_ok=True)
+    safe_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", nome_arquivo.strip() or "relatorio.pdf")
+    if not safe_name.lower().endswith(".pdf"):
+        safe_name += ".pdf"
+
+    out_path = STORAGE_ROOT / safe_name
+    timestamp = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
+    lines = [
+        f"Gerado em: {timestamp} | AI Orchestrator (Processo Python PDF)",
+        "-" * 78,
+        "",
+        *conteudo.splitlines(),
+    ]
+
+    pdf_bytes, num_pages = _build_simple_pdf(titulo, lines)
+    out_path.write_bytes(pdf_bytes)
+
+    return {
+        "fonte": "Processo Python Interno (Gerador PDF)",
+        "status": "pdf_gerado",
+        "titulo": titulo,
+        "arquivo": f"storage/{safe_name}",
+        "paginas": num_pages,
+        "tamanho_bytes": len(pdf_bytes),
     }
