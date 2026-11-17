@@ -3652,15 +3652,15 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         statusBadge.className = "agent-status-pill";
         statusText.textContent = "Backend FastAPI offline ou erro";
-        progressLabel.textContent = "Erro ao conectar em http://127.0.0.1:8000/api/orchestrate/stream";
+        progressLabel.textContent = `Erro ao conectar em ${API_BASE}/api/orchestrate/stream`;
         appendTrace(
           "Backend FastAPI não acessível",
-          "http://127.0.0.1:8000",
+          API_BASE,
           `Não foi possível executar a busca real: ${err.message}. Inicie o servidor FastAPI do ai_orchestrator.`,
-          `cd ai_orchestrator && .\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload`
+          `cd ai_orchestrator && .\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload`
         );
         aggregatorBox.style.display = "block";
-        aggregatorContent.innerHTML = `<strong>Para ativar as buscas reais no backend:</strong><br>Execute no terminal:<br><code>cd ai_orchestrator</code><br><code>.\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload</code>`;
+        aggregatorContent.innerHTML = `<strong>Para ativar as buscas reais no backend:</strong><br>Execute no terminal:<br><code>cd ai_orchestrator</code><br><code>.\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload</code>`;
       }
     }
 
