@@ -2524,3 +2524,184 @@ input[type="range"]::-webkit-slider-thumb {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Diagrama LangChain Architecture Flow (7 etapas + Tools laterais) */
+.langchain-flow-wrapper {
+  display: grid;
+  grid-template-columns: 1.55fr auto 1fr;
+  gap: 1rem;
+  align-items: center;
+  min-width: 720px;
+}
+
+.langchain-main-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.lc-step-node {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  opacity: 0.58;
+  transition: all 0.35s ease;
+}
+
+.lc-step-node.is-active {
+  opacity: 1;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.25);
+  transform: translateX(4px);
+}
+
+.lc-step-node.is-done {
+  opacity: 1;
+  border-color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.lc-step-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.lc-step-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.lc-step-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.lc-connector-bridge {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.lc-connector-bridge.is-active {
+  color: var(--accent-purple);
+  transform: scale(1.25);
+}
+
+.lc-tools-column {
+  border: 1.5px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.lc-tools-header {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 0.2rem;
+}
+
+.lc-tool-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  transition: all 0.35s ease;
+}
+
+.lc-tool-pill.is-active {
+  opacity: 1;
+  border-color: var(--accent-purple);
+  background: rgba(124, 58, 237, 0.14);
+  color: var(--accent-purple);
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.22);
+}
+
+.lc-tool-pill.is-done {
+  opacity: 1;
+  border-color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent-green);
+}
+
+/* Ponte Visual Transformer + MoE no cenário de busca */
+.agent-moe-bridge-banner {
+  background: rgba(14, 165, 233, 0.08);
+  border: 1.5px solid rgba(14, 165, 233, 0.35);
+  border-radius: var(--radius-md);
+  padding: 0.8rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.moe-bridge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-main);
+}
+
+.moe-bridge-formula {
+  font-size: 0.85rem;
+  color: var(--accent-purple);
+  font-weight: 700;
+}
+
+.moe-bridge-steps {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.moe-chip {
+  padding: 0.32rem 0.65rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+}
+
+.moe-chip.is-active {
+  background: rgba(124, 58, 237, 0.16);
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.25);
+}
+
+.moe-chip.is-done {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.moe-arrow {
+  font-weight: 800;
+  color: var(--text-muted);
+}

@@ -1,0 +1,6 @@
+# Arquitetura de Indexação RAG & Agentes LangChain
+1. Leitura de Arquivo: extração de texto de PDF, Markdown ou TXT autorizado em storage/.
+2. Divisão em Chunks: blocos de 400 a 600 caracteres com sobreposição (overlap).
+3. Embeddings: geração de vetores semânticos densos.
+4. Banco Vetorial: armazenamento e busca por similaridade de cosseno no PostgreSQL + pgvector.
+5. Orquestração LangChain: User Input -> Prompt Template -> LLM -> Chain -> Agent & Tools -> Memory -> Output.

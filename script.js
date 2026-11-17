@@ -40,7 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
     currentPredictions: [],
     revealedCandidatesCount: 0,
     isRevealingPredictions: false,
-    revelationTimer: null
+    revelationTimer: null,
+    activeMoeCategories: []
   };
 
   // ==================== DEFINIÇÃO DAS 7 ETAPAS DA JORNADA ANIMADA ====================
@@ -91,14 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     {
       index: 4,
-      title: "Etapa 5: Rede Feed-Forward (MLP) & Conexão Residual 2",
+      title: "Etapa 5: Mixture of Experts (MoE) & Conexão Residual 2",
       badge: "Passo 5 / 7",
-      concept: "Não-linearidade GELU & Memória Factual",
-      explanation: "Cada token passa isoladamente por um Perceptron Multicamadas (MLP) com expansão para $3.072$ dimensões e ativação não-linear GELU, funcionando como armazenamento associativo de conhecimento factual. O fluxo é somado através da segunda conexão residual em laço inferior.",
+      concept: "Roteamento Esparso Top-K + Shared Expert",
+      explanation: "No lugar do MLP denso, cada token passa por um bloco <strong>Mixture of Experts (MoE)</strong>: um <strong>Router</strong> seleciona os $K$ especialistas roteados mais relevantes ($y = \\sum_{i \\in \\text{TopK}(x)} g_i(x) E_i(x)$) e os soma ($\oplus$) ao <strong>Shared Expert</strong> sempre ativo.",
       highlightGroup: "stage-mlp",
       block: 1,
       head: 1,
-      headDesc: "Camada Feed-Forward"
+      headDesc: "MoE: Router + Top-K Experts"
     },
     {
       index: 5,
@@ -1387,7 +1388,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 3:
         return `A matriz de atenção pondera os vetores de <strong>Value ($V$)</strong> e soma ao atalho residual ($\\mathbf{x}_1 = \\mathbf{x}_0 + \\text{Attn}(\\mathbf{x}_0)$). O vetor de <strong>"${lastW}"</strong> agora carrega a intenção combinada de ${escapeXml(ctx.contextWordsSummary)}.`;
       case 4:
-        return `A rede Feed-Forward (MLP $768 \\to 3072 \\to 768$ com GELU) atua como memória associativa factual: os conceitos de <strong>${escapeXml(ctx.domainLabel)}</strong> ativam neurônios compatíveis com <em>${escapeXml(ctx.slotLabel)}</em>.`;
+        return `No bloco <strong>Mixture of Experts (MoE)</strong>, o Router calcula $g_i(x) = \\text{Softmax}(\\text{TopK}(x W_g))$ para ativar os especialistas do domínio <strong>${escapeXml(ctx.domainLabel)}</strong> e somar ao <strong>Shared Expert</strong> ($y = E_{\\text{shared}}(x) + \\sum_{i \\in \\text{TopK}(x)} g_i(x) E_i(x)$).`;
       case 5:
         return `Atravessando os 12 blocos Transformer: as camadas iniciais fixam a gramática de <strong>"${lastW}"</strong>, as médias alinham <strong>"${subjW}"</strong> + <strong>"${verbW}"</strong>, e as profundas refinam o subespaço semântico de <strong>${escapeXml(ctx.domainLabel)}</strong>.`;
       case 6:
@@ -1403,7 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 1: return `Query de "${ctx.lastWord}" exige: ${ctx.slotLabel}`;
       case 2: return `Atenção vinculando "${ctx.lastWord}" ← ${ctx.contextWordsSummary}`;
       case 3: return `Restrição ativa: ${ctx.agreementSummary}`;
-      case 4: return `Memória MLP ativada: [${ctx.domainLabel}]`;
+      case 4: return `MoE Router ativou Top-K Experts para [${ctx.domainLabel}]`;
       case 5: return `Convergindo 12 blocos para [${ctx.slotLabel}]`;
       default: return "Projetando no vocabulário W_U...";
     }
@@ -2493,12 +2494,12 @@ document.addEventListener('DOMContentLoaded', () => {
         </g>
       </g>
 
-      <!-- MLP -->
+      <!-- MoE (Mixture of Experts) -->
       <g>
-        <text x="${xMLP + 20}" y="48" class="svg-header-title clickable-title svg-zoom-trigger" data-modal="mlp">MLP</text>
-        <g class="svg-zoom-btn svg-zoom-trigger" data-modal="mlp" title="Detalhamento Matemático do MLP">
-          <rect x="${xMLP + 52}" y="32" width="24" height="24" rx="5" class="zoom-btn-bg" />
-          <text x="${xMLP + 64}" y="48" text-anchor="middle" class="zoom-btn-icon">🔍</text>
+        <text x="${xMLP + 42}" y="48" class="svg-header-title clickable-title svg-zoom-trigger" data-modal="mlp" text-anchor="middle">MoE (Top-K)</text>
+        <g class="svg-zoom-btn svg-zoom-trigger" data-modal="mlp" title="Detalhamento Matemático do Mixture of Experts (MoE)">
+          <rect x="${xMLP + 90}" y="32" width="24" height="24" rx="5" class="zoom-btn-bg" />
+          <text x="${xMLP + 102}" y="48" text-anchor="middle" class="zoom-btn-icon">🔍</text>
         </g>
       </g>
 
@@ -2637,26 +2638,83 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     });
 
-    // 6. MLP & LAÇO RESIDUAL
+    // 6. MIXTURE OF EXPERTS (MoE: ROUTER + ROUTED EXPERTS + SHARED EXPERT) & LAÇO RESIDUAL
+    const moeActive = state.currentStep === 4 || (state.activeMoeCategories && state.activeMoeCategories.length > 0);
+    const activeCatSet = new Set(state.activeMoeCategories || []);
+    const expertDefs = [
+      { id: "E0", label: "E0·Arq", cat: "files" },
+      { id: "E1", label: "E1·Web", cat: "web" },
+      { id: "E2", label: "E2·API", cat: "api" },
+      { id: "E3", label: "E3·SQL", cat: "database" },
+      { id: "E4..15", label: "E4..15·Proc", cat: "process" }
+    ];
+    const hasCustomCats = activeCatSet.size > 0;
+    const moeBoxX = xMLP - 6;
+    const moeBoxY = 122;
+    const moeBoxW = 134;
+    const moeBoxH = 260;
+
     svg += `
-      <rect x="${xMLP}" y="${tokenY[0] - 20}" width="28" height="${tokenY[N - 1] - tokenY[0] + 40}" rx="4" 
-            fill="var(--bg-tertiary)" stroke="var(--border-color)" />
+      <g class="svg-moe-block svg-zoom-trigger" data-modal="mlp" cursor="pointer">
+        <!-- Container MoE -->
+        <rect x="${moeBoxX}" y="${moeBoxY}" width="${moeBoxW}" height="${moeBoxH}" rx="8"
+              fill="${moeActive ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.05)'}"
+              stroke="${moeActive ? '#0284c7' : 'var(--border-color)'}" stroke-width="${moeActive ? '2' : '1.2'}" />
+        <text x="${moeBoxX + moeBoxW / 2}" y="${moeBoxY + 15}" font-size="9.5" font-weight="800" fill="#0284c7" text-anchor="middle">Mixture of Experts</text>
+
+        <!-- Caixa Routed Experts -->
+        <rect x="${moeBoxX + 7}" y="${moeBoxY + 23}" width="${moeBoxW - 14}" height="156" rx="6"
+              fill="rgba(236, 72, 153, 0.08)" stroke="rgba(236, 72, 153, 0.4)" stroke-width="1" />
+        <text x="${moeBoxX + moeBoxW / 2}" y="${moeBoxY + 36}" font-size="8.5" font-weight="700" fill="#be185d" text-anchor="middle">Routed Experts (Top-K)</text>
+    `;
+
+    expertDefs.forEach((exp, idx) => {
+      const ey = moeBoxY + 44 + idx * 20;
+      const isExpHot = hasCustomCats ? activeCatSet.has(exp.cat) : (moeActive && (idx === 0 || idx === 3));
+      svg += `
+        <rect x="${moeBoxX + 14}" y="${ey}" width="${moeBoxW - 28}" height="16" rx="3"
+              fill="${isExpHot ? '#7c3aed' : 'var(--bg-card)'}"
+              stroke="${isExpHot ? '#6d28d9' : 'var(--border-color)'}" stroke-width="1" />
+        <text x="${moeBoxX + moeBoxW / 2}" y="${ey + 11}" font-size="8" font-weight="700"
+              fill="${isExpHot ? '#ffffff' : 'var(--text-main)'}" text-anchor="middle">${exp.label}</text>
+      `;
+    });
+
+    svg += `
+        <!-- Router -->
+        <rect x="${moeBoxX + 20}" y="${moeBoxY + 149}" width="${moeBoxW - 40}" height="22" rx="4"
+              fill="${moeActive ? '#10b981' : 'rgba(16, 185, 129, 0.25)'}" stroke="#059669" stroke-width="1.2" />
+        <text x="${moeBoxX + moeBoxW / 2}" y="${moeBoxY + 163}" font-size="9" font-weight="800"
+              fill="${moeActive ? '#ffffff' : '#065f46'}" text-anchor="middle">Router gᵢ(x)</text>
+
+        <!-- Shared Expert -->
+        <rect x="${moeBoxX + 12}" y="${moeBoxY + 188}" width="${moeBoxW - 24}" height="28" rx="5"
+              fill="${moeActive ? '#f59e0b' : 'rgba(245, 158, 11, 0.25)'}" stroke="#d97706" stroke-width="1.2" />
+        <text x="${moeBoxX + moeBoxW / 2}" y="${moeBoxY + 205}" font-size="9" font-weight="800"
+              fill="${moeActive ? '#ffffff' : '#92400e'}" text-anchor="middle">Shared Expert</text>
+
+        <!-- Nó Somatório (+) -->
+        <circle cx="${moeBoxX + moeBoxW / 2}" cy="${moeBoxY + 238}" r="11"
+                fill="var(--bg-card)" stroke="${moeActive ? '#7c3aed' : 'var(--border-color)'}" stroke-width="1.8" />
+        <text x="${moeBoxX + moeBoxW / 2}" y="${moeBoxY + 242}" font-size="13" font-weight="800"
+              fill="var(--text-main)" text-anchor="middle">+</text>
+      </g>
     `;
 
     const mlpResBottom = 470;
     svg += `
-      <text x="${xMLP + 50}" y="${mlpResBottom - 18}" class="svg-header-text" text-anchor="middle" font-size="11" font-style="italic">Residual</text>
+      <text x="${xMLP + 58}" y="${mlpResBottom - 18}" class="svg-header-text" text-anchor="middle" font-size="11" font-style="italic">Residual</text>
       <path d="M ${xMLP - 10} ${tokenY[N - 1] + 10} 
-               C ${xMLP} ${mlpResBottom}, ${xResidualMerge} ${mlpResBottom}, ${xResidualMerge} ${tokenY[N - 1] + 5}" 
+               C ${xMLP} ${mlpResBottom}, ${xResidualMerge + 25} ${mlpResBottom}, ${xResidualMerge + 25} ${tokenY[N - 1] + 5}" 
             class="svg-residual-path" />
     `;
 
     tokens.forEach((tok, i) => {
       const y = tokenY[i];
       svg += `
-        <text x="${xMLP - 8}" y="${y + 4}" class="svg-token-label" font-size="11" text-anchor="end" fill="var(--text-muted)">${escapeXml(tok)}</text>
-        <path d="M ${xMLP + 28} ${y} 
-                 C ${xMLP + 55} ${y}, ${x11Blocks - 45} ${y}, ${x11Blocks - 10} ${y}" 
+        <text x="${xMLP - 10}" y="${y + 4}" class="svg-token-label" font-size="11" text-anchor="end" fill="var(--text-muted)">${escapeXml(tok)}</text>
+        <path d="M ${moeBoxX + moeBoxW} ${y} 
+                 C ${moeBoxX + moeBoxW + 25} ${y}, ${x11Blocks - 35} ${y}, ${x11Blocks - 10} ${y}" 
               class="svg-stream-path" />
       `;
     });
@@ -2682,7 +2740,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "2. Projeção Linear Query, Key & Value",
         "3. Auto-Atenção Multi-Head (12 Cabeças)",
         "4. Consolidação Contextual & Residual 1",
-        "5. Memória Associativa Feed-Forward (MLP)",
+        "5. Mixture of Experts (MoE Top-K)",
         "6. Refinamento nos 12 Blocos Transformer"
       ];
       const subjInfo = ctx.subjectWord ? `Sujeito: "${ctx.subjectWord}"` : `Início: "${tokens[0] || ''}"`;
@@ -2692,7 +2750,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [`Query Q de "${lastTokenText}" busca conexões sintáticas anteriores.`, `Alvo gramatical exigido: ${ctx.slotLabel}.`],
         [`As 12 cabeças conectam "${lastTokenText}" a ${ctx.contextWordsSummary}.`, `Alinhando concordância (${ctx.agreementSummary}) e papel temático.`],
         [`Soma ponderada A×V incorpora "${ctx.verbWord || tokens[0]}" ao vetor de "${lastTokenText}".`, `Restrição sintática ativa: ${ctx.slotLabel}.`],
-        [`MLP 4x ativa memória semântica do domínio [${ctx.domainLabel}].`, `Pistas léxicas ativas: ${ctx.contextWordsSummary}.`],
+        [`Router MoE seleciona Top-K Experts + Shared Expert [${ctx.domainLabel}].`, `y = E_shared(x) + Σ g_i(x)·E_i(x)`],
         [`Bloco ${state.selectedBlock}/12 refinando representação latente de "${lastTokenText}".`, `Hipótese estrutural: ${ctx.slotLabel} (${ctx.domainLabel}).`]
       ];
       const linesForStep = stepActionLines[state.currentStep] || stepActionLines[0];
@@ -3183,22 +3241,23 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
     } else if (type === 'mlp') {
-      title = "Redes Feed-Forward Position-Wise (MLP) & Conexões Residuais";
-      tag = "Módulo 4";
-      dims = "Expansão 4x: 768 → 3.072 → 768";
+      title = "Mixture of Experts (MoE) — Roteamento Top-K & Shared Expert";
+      tag = "Módulo 4 (MoE)";
+      dims = "16 Routed Experts + 1 Shared Expert (Sparse Top-K)";
       content = `
         <div class="math-card-block">
-          <h4>1. Expansão de Dimensão e Ativação GELU</h4>
-          <p>Após a atenção misturar o contexto entre tokens distintos, cada token passa isoladamente por um Perceptron Multicamadas (MLP) com expansão para 4x a dimensão:</p>
-          <div class="math-callout">$$\\text{FFN}(\\mathbf{x}) = \\text{GELU}(\\mathbf{x} W_1 + \\mathbf{b}_1) W_2 + \\mathbf{b}_2$$</div>
-          <p>A ativação <strong>GELU (Gaussian Error Linear Unit)</strong> fornece uma curvatura suave, evitando morte de neurônios comuns com ReLU.</p>
+          <h4>1. Equação Fundamental do Mixture of Experts (MoE)</h4>
+          <p>Em vez de ativar um MLP denso único para todos os tokens, o bloco <strong>MoE</strong> ativa apenas os <strong>$K$ especialistas mais relevantes</strong> escolhidos pelo Router:</p>
+          <div class="math-callout">$$y = \\sum_{i \\in \\text{TopK}(x)} g_i(x)\\, E_i(x)$$</div>
+          <p>Com a inclusão de um <strong>Shared Expert</strong> sempre ativo (como no diagrama da arquitetura), somamos a base comum aos especialistas roteados:</p>
+          <div class="math-callout">$$y = E_{\\text{shared}}(x) + \\sum_{i \\in \\text{TopK}(x)} g_i(x)\\, E_i(x)$$</div>
         </div>
 
         <div class="math-card-block">
-          <h4>2. O Papel Vital das Conexões Residuais (Skip Connections)</h4>
-          <p>Cada subcamada utiliza a adição residual $\\mathbf{x} + \\text{SubLayer}(\\text{LayerNorm}(\\mathbf{x}))$.</p>
-          <div class="math-callout">$$\\frac{\\partial \\mathcal{L}}{\\partial \\mathbf{x}} = \\frac{\\partial \\mathcal{L}}{\\partial \\mathbf{y}} \\left(1 + \\frac{\\partial F}{\\partial \\mathbf{x}}\\right)$$</div>
-          <p>O termo constante $+1$ assegura que o sinal do erro retropropague sem atenuação por todos os 12 blocos sem desvanecimento de gradientes.</p>
+          <h4>2. Rede de Roteamento (Router / Gating Network) &amp; Balanceamento</h4>
+          <p>O Router projeta o vetor $x$ sobre os $N$ especialistas ($W_g \\in \\mathbb{R}^{d_{model} \\times N}$) e aplica Softmax nos Top-K escores:</p>
+          <div class="math-callout">$$g_i(x) = \\frac{\\exp((x W_g)_i)}{\\sum_{j \\in \\text{TopK}(x)} \\exp((x W_g)_j)}, \\qquad \\mathcal{L}_{\\text{aux}} = \\alpha \\cdot N \\sum_{i=1}^{N} f_i \\cdot P_i$$</div>
+          <p>A perda auxiliar $\\mathcal{L}_{\\text{aux}}$ garante distribuição equilibrada entre os especialistas ($E_0 \\dots E_{15}$), evitando colapso de roteamento.</p>
         </div>
       `;
     } else if (type === 'blocks') {
@@ -3280,10 +3339,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ==================== 6. CENÁRIO INTERATIVO DE BUSCA, FERRAMENTAS & MULTIAGENTE ====================
+  // ==================== 6. CENÁRIO REAL LANGCHAIN ARCHITECTURE FLOW & TOOLS ====================
   function initAgentSearchScenario() {
     const searchInput = document.getElementById('agentSearchInput');
     const scenarioSelect = document.getElementById('agentScenarioSelect');
+    const modelSelect = document.getElementById('agentModelSelect');
     const btnRun = document.getElementById('btnRunAgentSearch');
     const btnClear = document.getElementById('btnClearAgentSearch');
     const presetChips = document.getElementById('agentPresetChips');
@@ -3301,578 +3361,310 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!searchInput || !btnRun || !pipelineBoard) return;
 
+    const API_BASE = "http://127.0.0.1:8000";
     let activeTimer = null;
 
-    function detectScenarioFromQuery(query) {
-      const q = (query || "").toLowerCase();
-      const hasMulti = (q.includes("compare") || q.includes(" e ")) && (q.includes("tendências") || q.includes("mercado") || q.includes("web")) && (q.includes("faturamento") || q.includes("relatório") || q.includes("pdf"));
-      if (hasMulti) return "multiagent";
-      if (/cpf|api|rest|endpoint|cliente|clientes|http|json/.test(q)) return "rest_api";
-      if (/internet|web|tavily|tendência|tendencias|mercado|pesquise|notícia|noticias|2026/.test(q)) return "web_search";
-      if (/gerar_relatorio|processo|python|executar|gerar relatório|gerar relatorio/.test(q)) return "python_process";
-      if (/pdf|arquivo|arquivos|documento|rag|chunk|pgvector|semântica|semantica|política|politica|ler_pdf/.test(q)) return "files_rag";
-      if (/sql|postgres|postgresql|banco|vendas|faturamento|consultar_vendas|receita/.test(q)) return "database_sql";
-      return "multiagent";
-    }
+    const LC_NODES = [
+      { id: "user_input", icon: "👤", title: "1. User Input", sub: "Query / Question / Command" },
+      { id: "prompt_template", icon: "📋", title: "2. Prompt Template", sub: "Formats & injects variables" },
+      { id: "llm_model", icon: "🧠", title: "3. LLM / Chat Model", sub: "Processes the structured prompt" },
+      { id: "chain", icon: "🔗", title: "4. Chain (Pipeline)", sub: "Sequences multi-step operations" },
+      { id: "agent_tools", icon: "🤖", title: "5. Agent & Tools", sub: "Decides actions, calls tools (APIs, DB)" },
+      { id: "memory", icon: "💾", title: "6. Memory", sub: "Stores conversation & context" },
+      { id: "output", icon: "✅", title: "7. Output", sub: "Final Answer / Action / Data" }
+    ];
 
-    function buildScenarioPlan(mode, query) {
-      const cleanQ = query.trim() || "Solicitação empresarial";
-      const cpfMatch = cleanQ.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
-      const cpfVal = cpfMatch ? cpfMatch[0] : "123.456.789-00";
+    const LC_TOOLS = [
+      { id: "files", icon: "📄", label: "Arquivos & Chunks (storage/)" },
+      { id: "web", icon: "🌐", label: "Web Search API (Live)" },
+      { id: "api", icon: "🔌", label: "REST APIs (HTTP GET)" },
+      { id: "database", icon: "🗄️", label: "Database Query (PostgreSQL)" },
+      { id: "process", icon: "⚙️", label: "Processos Python & Calc" }
+    ];
 
-      const PLANS = {
-        files_rag: {
-          label: "3.3 Leitura & Pesquisa Semântica (PDF + pgvector)",
-          nodes: [
-            { id: "file", icon: "📄", title: "Arquivo (PDF)", sub: "PyPDFLoader autorizado" },
-            { id: "extract", icon: "📝", title: "Extração", sub: "Texto limpo [:15000]" },
-            { id: "chunks", icon: "✂️", title: "Chunks", sub: "Blocos de 500 tokens" },
-            { id: "embed", icon: "🧮", title: "Embeddings", sub: "Vetores ℝ³⁸⁴ / ℝ¹⁵³⁶" },
-            { id: "pgvec", icon: "🗄️", title: "pgvector", sub: "Índice HNSW / Cosseno" },
-            { id: "llm", icon: "🤖", title: "Contexto LLM", sub: "Top-K trechos relevantes" }
-          ],
-          steps: [
-            {
-              nodeId: "file",
-              title: "Leitura de arquivo autorizado (ler_pdf)",
-              tag: "app/tools/files/reader.py",
-              desc: `Validando acesso em storage/ e abrindo documento PDF para a busca: "${cleanQ}".`,
-              code: `PyPDFLoader("storage/relatorio_comercial_2026.pdf").load()`,
-              found: null
-            },
-            {
-              nodeId: "extract",
-              title: "Extração de conteúdo textual",
-              tag: "PyPDFLoader",
-              desc: "Concatenando páginas do PDF e removendo cabeçalhos repetitivos (limite de 15.000 chars).",
-              code: `"\\n".join(doc.page_content for doc in documentos)[:15000]  # 12 páginas extraídas`,
-              found: null
-            },
-            {
-              nodeId: "chunks",
-              title: "Divisão em chunks semânticos",
-              tag: "TextSplitter",
-              desc: "Segmentando o texto em 28 chunks de 500 tokens com overlap de 80 tokens para preservar contexto.",
-              code: `chunks = split_text(texto, chunk_size=500, overlap=80)  # 28 chunks gerados`,
-              found: null
-            },
-            {
-              nodeId: "embed",
-              title: "Geração de Embeddings da consulta e chunks",
-              tag: "EmbeddingModel",
-              desc: `Convertendo a pergunta "${cleanQ.slice(0, 48)}..." em vetor denso para comparação.`,
-              code: `q_vec = embed_query("${cleanQ.slice(0, 42)}")  # dim=1536`,
-              found: null
-            },
-            {
-              nodeId: "pgvec",
-              title: "Busca por similaridade vetorial no PostgreSQL",
-              tag: "pgvector (<=>)",
-              desc: "Calculando distância de cosseno no pgvector e recuperando os 3 trechos mais próximos.",
-              code: `SELECT content, 1 - (embedding <=> :q_vec) AS score FROM doc_chunks ORDER BY embedding <=> :q_vec LIMIT 3;`,
-              found: [
-                {
-                  source: "Interno: PDF + pgvector",
-                  type: "internal",
-                  score: "94.2% similaridade",
-                  pct: 94,
-                  title: "Chunk #14 — Relatório Comercial Q4 (Pág. 6)",
-                  body: "Meta comercial definida em R$ 1,45M para o trimestre, com política de desconto máximo de 12% para contratos anuais."
-                },
-                {
-                  source: "Interno: PDF + pgvector",
-                  type: "internal",
-                  score: "88.7% similaridade",
-                  pct: 89,
-                  title: "Chunk #19 — Regras de Reembolso e SLA (Pág. 9)",
-                  body: "Reembolsos aprovados em até 7 dias úteis mediante validação automática do agente operacional."
-                }
-              ]
-            },
-            {
-              nodeId: "llm",
-              title: "Injeção de contexto no LLM",
-              tag: "RAG Context",
-              desc: "Trechos recuperados entregues ao modelo para formular resposta fundamentada sem alucinações.",
-              code: `contexto_rag = format_docs(top_k_chunks) -> model.invoke(prompt + contexto_rag)`,
-              found: null
-            }
-          ],
-          summary: `Busca semântica em PDF concluída via <strong>ler_pdf + pgvector</strong> para <em>"${escapeXml(cleanQ)}"</em>: foram recuperados 2 chunks internos de alta similaridade (94.2% e 88.7%) com metas comerciais e políticas de desconto/reembolso.`
-        },
-
-        rest_api: {
-          label: "3.4 Consumo de APIs REST (consultar_cliente)",
-          nodes: [
-            { id: "sup", icon: "🧭", title: "Supervisor", sub: "Interpreta solicitação" },
-            { id: "auth", icon: "🔐", title: "Backend Auth", sub: "URL, escopo & token" },
-            { id: "req", icon: "📡", title: "GET /clientes", sub: `cpf=${cpfVal}` },
-            { id: "json", icon: "📦", title: "Payload JSON", sub: "Validação Pydantic" }
-          ],
-          steps: [
-            {
-              nodeId: "sup",
-              title: "Roteamento para Agente Operacional",
-              tag: "consultar_cliente",
-              desc: `Identificada necessidade de consulta cadastral para "${cleanQ}".`,
-              code: `tool_call: consultar_cliente(cpf="${cpfVal}")`,
-              found: null
-            },
-            {
-              nodeId: "auth",
-              title: "Validação de URL, permissões e timeout no backend",
-              tag: "app/tools/integrations/rest_api.py",
-              desc: "URL e credenciais são controladas exclusivamente pelo backend (nunca pelo modelo).",
-              code: `headers = {"Authorization": "Bearer <BACKEND_TOKEN>"} | timeout=10s`,
-              found: null
-            },
-            {
-              nodeId: "req",
-              title: "Requisição HTTP GET enviada ao endpoint REST",
-              tag: "requests.get",
-              desc: `Consultando serviço externo/corporativo para CPF ${cpfVal}...`,
-              code: `GET https://api.exemplo.com/clientes?cpf=${cpfVal} -> HTTP 200 OK (142ms)`,
-              found: [
-                {
-                  source: "Interno: API REST (/clientes)",
-                  type: "internal",
-                  score: "HTTP 200 OK",
-                  pct: 96,
-                  title: `Registro Cadastral — CPF ${cpfVal}`,
-                  body: "Cliente: Empresa Horizonte Ltda | Plano: Enterprise | Status: Ativo | Última fatura: R$ 18.400,00 (adimplente)."
-                }
-              ]
-            },
-            {
-              nodeId: "json",
-              title: "Normalização e entrega do JSON ao orquestrador",
-              tag: "response.json()",
-              desc: "Dados estruturados validados e prontos para resposta ao usuário.",
-              code: `{"cpf": "${cpfVal}", "status": "ativo", "plano": "Enterprise"}`,
-              found: null
-            }
-          ],
-          summary: `Consulta REST concluída via <strong>consultar_cliente(cpf="${escapeXml(cpfVal)}")</strong> com HTTP 200 OK. Credenciais e URL foram protegidas no backend e os dados cadastrais retornaram estruturados.`
-        },
-
-        web_search: {
-          label: "3.5 Pesquisa na Internet (Tavily web_search)",
-          nodes: [
-            { id: "sup", icon: "🧭", title: "Supervisor", sub: "Identifica fonte externa" },
-            { id: "res", icon: "🔎", title: "Agente Pesquisador", sub: "Formula query web" },
-            { id: "tavily", icon: "🌐", title: "Tavily Search", sub: "max_results=5" },
-            { id: "rank", icon: "📊", title: "Ranqueamento", sub: "Separa fonte externa" }
-          ],
-          steps: [
-            {
-              nodeId: "sup",
-              title: "Classificação de fonte externa",
-              tag: "Regra #5",
-              desc: "A solicitação exige informações públicas atualizadas fora dos bancos internos.",
-              code: `route -> Agente Pesquisador (fonte_externa=True)`,
-              found: null
-            },
-            {
-              nodeId: "res",
-              title: "Otimização da query de busca externa",
-              tag: "app/tools/integrations/web_search.py",
-              desc: `Preparando consulta otimizada para TavilySearchResults a partir de "${cleanQ.slice(0, 50)}".`,
-              code: `web_search.invoke({"query": "${cleanQ.slice(0, 55)}"})`,
-              found: null
-            },
-            {
-              nodeId: "tavily",
-              title: "Varredura em fontes web via Tavily (max_results=5)",
-              tag: "TavilySearchResults",
-              desc: "Coletando artigos recentes, relatórios de mercado e índices de relevância...",
-              code: `TavilySearchResults(max_results=5) -> 5 documentos externos retornados (380ms)`,
-              found: [
-                {
-                  source: "Externo: Web (Tavily)",
-                  type: "external",
-                  score: "93% relevância",
-                  pct: 93,
-                  title: "Tendências de IA Corporativa & Agentes Autônomos 2026",
-                  body: "Adoção de orquestradores multiagentes com LangGraph cresceu 64% em operações de backoffice e análise comercial."
-                },
-                {
-                  source: "Externo: Web (Tavily)",
-                  type: "external",
-                  score: "87% relevância",
-                  pct: 87,
-                  title: "Panorama do Mercado SaaS B2B no 2º Semestre",
-                  body: "Empresas que integram RAG em pgvector com dados transacionais reduzem em 41% o tempo de geração de relatórios."
-                }
-              ]
-            },
-            {
-              nodeId: "rank",
-              title: "Rotulagem explícita de origem externa",
-              tag: "Verificação",
-              desc: "Fontes externas marcadas claramente para não se misturarem com dados internos.",
-              code: `tag_sources(results, origin="EXTERNO_WEB")`,
-              found: null
-            }
-          ],
-          summary: `Pesquisa externa via <strong>TavilySearchResults</strong> concluída para <em>"${escapeXml(cleanQ)}"</em>. Foram encontradas 2 referências web recentes devidamente marcadas como <strong>fontes externas</strong>.`
-        },
-
-        python_process: {
-          label: "3.6 Execução de Processo Python (gerar_relatorio_vendas)",
-          nodes: [
-            { id: "sup", icon: "🧭", title: "Supervisor", sub: "Detecta ação interna" },
-            { id: "params", icon: "🧩", title: "Parâmetros", sub: "mes=10, ano=2026" },
-            { id: "exec", icon: "⚙️", title: "Serviço Python", sub: "gerar_relatorio_vendas" },
-            { id: "out", icon: "✅", title: "Artefato", sub: "relatorio_gerado" }
-          ],
-          steps: [
-            {
-              nodeId: "sup",
-              title: "Mapeamento para ferramenta de processo interno",
-              tag: "app/tools/processes/reports.py",
-              desc: `Modelo seleciona gerar_relatorio_vendas sem precisar conhecer a implementação interna.`,
-              code: `@tool def gerar_relatorio_vendas(mes: int, ano: int)`,
-              found: null
-            },
-            {
-              nodeId: "params",
-              title: "Extração e validação de parâmetros tipados",
-              tag: "Pydantic Schema",
-              desc: "Extraindo mês e ano da solicitação do usuário com validação de tipo.",
-              code: `params = {"mes": 10, "ano": 2026}`,
-              found: null
-            },
-            {
-              nodeId: "exec",
-              title: "Executando serviço interno Python de relatórios",
-              tag: "Python Worker",
-              desc: "Consolidando séries de faturamento, impostos e exportando resumo operacional...",
-              code: `resultado = gerar_relatorio_vendas.invoke({"mes": 10, "ano": 2026})`,
-              found: [
-                {
-                  source: "Interno: Processo Python",
-                  type: "internal",
-                  score: "Status: OK",
-                  pct: 100,
-                  title: "Relatório de Vendas — Outubro/2026",
-                  body: '{"mes": 10, "ano": 2026, "status": "relatorio_gerado", "arquivo": "storage/relatorio_10_2026.pdf"}'
-                }
-              ]
-            },
-            {
-              nodeId: "out",
-              title: "Registro de auditoria e retorno",
-              tag: "executions table",
-              desc: "Execução gravada na tabela executions do PostgreSQL.",
-              code: `INSERT INTO executions (status, output_payload) VALUES ('completed', ...)`,
-              found: null
-            }
-          ],
-          summary: `Processo Python <strong>gerar_relatorio_vendas(mes=10, ano=2026)</strong> executado com sucesso, retornando <code>status: "relatorio_gerado"</code>.`
-        },
-
-        database_sql: {
-          label: "Banco de Dados PostgreSQL (consultar_vendas)",
-          nodes: [
-            { id: "sup", icon: "🧭", title: "Supervisor", sub: "Roteia para Dados" },
-            { id: "agent", icon: "🗄️", title: "Agente de Dados", sub: "consultar_vendas" },
-            { id: "sql", icon: "⚡", title: "Query SQL", sub: "PostgreSQL 16" },
-            { id: "res", icon: "📈", title: "Agregação", sub: "Métricas do mês" }
-          ],
-          steps: [
-            {
-              nodeId: "sup",
-              title: "Seleção do Agente de Dados",
-              tag: "app/tools/database/postgres.py",
-              desc: `Solicitação "${cleanQ.slice(0, 50)}" direcionada para consulta transacional segura.`,
-              code: `tool_call: consultar_vendas(mes=10, ano=2026)`,
-              found: null
-            },
-            {
-              nodeId: "agent",
-              title: "Preparação de consulta parametrizada",
-              tag: "SQLAlchemy Session",
-              desc: "Gerando query SQL segura com bind parameters (protegida contra SQL Injection).",
-              code: `SELECT COUNT(*), SUM(valor) FROM vendas WHERE mes = :mes AND ano = :ano`,
-              found: null
-            },
-            {
-              nodeId: "sql",
-              title: "Execução no container PostgreSQL (pg16)",
-              tag: "127.0.0.1:5432",
-              desc: "Varrendo índice temporal e consolidando registros de outubro...",
-              code: `PostgreSQL -> 312 pedidos processados em 18ms`,
-              found: [
-                {
-                  source: "Interno: PostgreSQL",
-                  type: "internal",
-                  score: "18ms latency",
-                  pct: 95,
-                  title: "Faturamento Consolidado — Outubro/2026",
-                  body: "Receita bruta: R$ 482.900,00 | 312 pedidos fechados | Ticket médio: R$ 1.547,75 (+11,4% vs setembro)."
-                }
-              ]
-            },
-            {
-              nodeId: "res",
-              title: "Dados retornados ao orquestrador",
-              tag: "JSON Result",
-              desc: "Métricas validadas prontas para apresentação.",
-              code: `{"fonte": "PostgreSQL", "mes": 10, "receita": 482900.00}`,
-              found: null
-            }
-          ],
-          summary: `Consulta ao <strong>PostgreSQL (consultar_vendas)</strong> concluída: em outubro foram registrados <strong>312 pedidos</strong> totalizando <strong>R$ 482.900,00</strong> (+11,4% sobre o mês anterior).`
-        },
-
-        multiagent: {
-          label: "Modelo B: Arquitetura Multiagente Paralela (LangGraph)",
-          isMultiagent: true,
-          nodes: [
-            { id: "sup", icon: "🧭", title: "Agente Supervisor", sub: "Interpreta e distribui" },
-            { id: "data", icon: "🗄️", title: "Agente de Dados", sub: "SQL / consultar_vendas" },
-            { id: "doc", icon: "📄", title: "Agente Documental", sub: "PDF + RAG (pgvector)" },
-            { id: "web", icon: "🌐", title: "Agente Pesquisador", sub: "Web / Tavily Search" },
-            { id: "agg", icon: "✨", title: "Agregador", sub: "Consolida respostas" }
-          ],
-          steps: [
-            {
-              nodeId: "sup",
-              title: "1. Agente Supervisor decompõe a solicitação",
-              tag: "LangGraph StateGraph",
-              desc: `Analisando "${cleanQ.slice(0, 62)}..." e dividindo em 3 subtarefas paralelas.`,
-              code: `plan = [AgenteDados(outubro), AgenteDocumental(relatorio), AgentePesquisador(mercado)]`,
-              found: null
-            },
-            {
-              nodeId: "data",
-              title: "2a. [Paralelo] Agente de Dados consulta faturamento",
-              tag: "consultar_vendas (SQL)",
-              desc: "Executando consulta SQL no PostgreSQL para obter o faturamento real de outubro.",
-              code: `consultar_vendas(mes=10, ano=2026) -> R$ 482.900,00 (312 pedidos)`,
-              found: [
-                {
-                  source: "Interno: Agente de Dados (SQL)",
-                  type: "internal",
-                  score: "Dado Real SQL",
-                  pct: 98,
-                  title: "Faturamento de Outubro (PostgreSQL)",
-                  body: "Receita realizada em outubro: R$ 482.900,00 (+11,4% frente a setembro; 96,5% da meta mensal de R$ 500 mil)."
-                }
-              ]
-            },
-            {
-              nodeId: "doc",
-              title: "2b. [Paralelo] Agente Documental busca relatório comercial",
-              tag: "ler_pdf + pgvector",
-              desc: "Extraindo chunks e calculando similaridade semântica no relatório comercial em PDF.",
-              code: `pgvector_search("relatório comercial metas outubro") -> 94.2% match`,
-              found: [
-                {
-                  source: "Interno: Agente Documental (PDF/RAG)",
-                  type: "internal",
-                  score: "94.2% similaridade",
-                  pct: 94,
-                  title: "Relatório Comercial Q4 (Chunk #14)",
-                  body: "O relatório comercial previa R$ 500.000,00 para outubro com foco em expansão B2B e margem líquida de 24%."
-                }
-              ]
-            },
-            {
-              nodeId: "web",
-              title: "2c. [Paralelo] Agente Pesquisador busca tendências externas",
-              tag: "Tavily web_search",
-              desc: "Consultando fontes públicas na internet sobre tendências do mercado para contextualizar.",
-              code: `TavilySearchResults("tendências mercado B2B 2026") -> 5 fontes externas`,
-              found: [
-                {
-                  source: "Externo: Agente Pesquisador (Web)",
-                  type: "external",
-                  score: "91% relevância",
-                  pct: 91,
-                  title: "Tendência Externa de Mercado (Tavily)",
-                  body: "O setor B2B apresentou crescimento médio de 8,2% no trimestre, impulsionado por automação com agentes de IA."
-                }
-              ]
-            },
-            {
-              nodeId: "agg",
-              title: "3. Agregador combina fontes internas e externas",
-              tag: "Supervisor Reducer",
-              desc: "Cruzando faturamento SQL + meta do PDF + tendência externa com separação de origem.",
-              code: `synthesize(sql_data, rag_chunks, web_trends, distinguish_internal_external=True)`,
-              found: null
-            }
-          ],
-          summary: `<strong>Síntese do Agregador (Modelo B):</strong><br>
-          • <strong>Dado Interno (PostgreSQL):</strong> Outubro fechou em <strong>R$ 482.900,00</strong> (+11,4% vs mês anterior).<br>
-          • <strong>Dado Interno (PDF/RAG):</strong> O relatório comercial estipulava meta de <strong>R$ 500.000,00</strong> — atingimento de <strong>96,5%</strong>.<br>
-          • <strong>Fonte Externa (Web/Tavily):</strong> O crescimento de +11,4% superou a média de mercado de <strong>+8,2%</strong> no período.`
-        }
-      };
-
-      return PLANS[mode] || PLANS.multiagent;
-    }
-
-    function renderPipelineSkeleton(plan) {
-      if (plan.isMultiagent) {
-        pipelineBoard.innerHTML = `
-          <div class="pipeline-multiagent-grid">
-            ${renderNodeCard(plan.nodes[0])}
-            <div class="pipeline-arrow" data-arrow="sup">&rarr;</div>
-            <div class="pipeline-parallel-lanes">
-              ${renderNodeCard(plan.nodes[1])}
-              ${renderNodeCard(plan.nodes[2])}
-              ${renderNodeCard(plan.nodes[3])}
-            </div>
-            <div class="pipeline-arrow" data-arrow="agg">&rarr;</div>
-            ${renderNodeCard(plan.nodes[4])}
-          </div>
-        `;
-      } else {
-        pipelineBoard.innerHTML = `
-          <div class="pipeline-linear-flow">
-            ${plan.nodes.map((n, i) => `
-              ${renderNodeCard(n)}
-              ${i < plan.nodes.length - 1 ? `<div class="pipeline-arrow" data-arrow="${n.id}">&rarr;</div>` : ""}
+    function renderLangChainFlowSkeleton() {
+      pipelineBoard.innerHTML = `
+        <div class="langchain-flow-wrapper">
+          <div class="langchain-main-column">
+            ${LC_NODES.map(n => `
+              <div class="lc-step-node" data-lc-node="${n.id}">
+                <span class="lc-step-icon">${n.icon}</span>
+                <div>
+                  <div class="lc-step-title">${escapeXml(n.title)}</div>
+                  <div class="lc-step-sub">${escapeXml(n.sub)}</div>
+                </div>
+              </div>
             `).join("")}
           </div>
-        `;
-      }
-    }
-
-    function renderNodeCard(n) {
-      return `
-        <div class="pipeline-node-card" data-node-id="${n.id}">
-          <span class="pipeline-node-icon">${n.icon}</span>
-          <div>
-            <div class="pipeline-node-title">${escapeXml(n.title)}</div>
-            <div class="pipeline-node-sub">${escapeXml(n.sub)}</div>
+          <div class="lc-connector-bridge" id="lcToolsBridge">&harr;</div>
+          <div class="lc-tools-column">
+            <div class="lc-tools-header">Tools (Tool Calling)</div>
+            ${LC_TOOLS.map(t => `
+              <div class="lc-tool-pill" data-lc-tool="${t.id}">
+                <span>${t.icon}</span>
+                <span>${escapeXml(t.label)}</span>
+              </div>
+            `).join("")}
           </div>
         </div>
       `;
     }
 
-    function resetSearchUI(plan) {
+    function setNodeState(nodeId, stateName) {
+      const el = pipelineBoard.querySelector(`[data-lc-node="${nodeId}"]`);
+      if (!el) return;
+      el.classList.remove('is-active', 'is-done');
+      if (stateName) el.classList.add(stateName);
+    }
+
+    function setToolState(toolCat, stateName) {
+      const el = pipelineBoard.querySelector(`[data-lc-tool="${toolCat}"]`);
+      if (!el) return;
+      el.classList.remove('is-active', 'is-done');
+      if (stateName) el.classList.add(stateName);
+    }
+
+    function appendTrace(title, tag, desc, codeText) {
+      const traceEl = document.createElement('div');
+      traceEl.className = 'agent-trace-item';
+      traceEl.innerHTML = `
+        <div class="agent-trace-head">
+          <span class="agent-trace-title">${escapeXml(title)}</span>
+          <span class="agent-trace-tag">${escapeXml(tag)}</span>
+        </div>
+        <div class="agent-trace-desc">${escapeXml(desc)}</div>
+        ${codeText ? `<div class="agent-trace-code">${escapeXml(codeText)}</div>` : ""}
+      `;
+      traceList.appendChild(traceEl);
+      traceList.scrollTop = traceList.scrollHeight;
+    }
+
+    function appendFoundCard(toolExec) {
+      const isExternal = toolExec.category === "web" || toolExec.category === "api";
+      const badgeLabel = isExternal ? `Externo: ${toolExec.tool}` : `Interno: ${toolExec.tool}`;
+      const bodyStr = typeof toolExec.result === "string"
+        ? toolExec.result
+        : JSON.stringify(toolExec.result, null, 2);
+
+      const card = document.createElement('div');
+      card.className = 'agent-found-card';
+      card.innerHTML = `
+        <div class="found-card-top">
+          <span class="found-source-badge ${isExternal ? 'external' : 'internal'}">${escapeXml(badgeLabel)}</span>
+          <span class="found-score">${toolExec.status === 'ok' ? 'OK' : 'ERRO'} &bull; ${toolExec.duration_ms} ms</span>
+        </div>
+        <div class="found-card-title">Args: ${escapeXml(JSON.stringify(toolExec.args))}</div>
+        <pre class="agent-trace-code" style="white-space:pre-wrap;max-height:150px;overflow:auto;">${escapeXml(bodyStr.slice(0, 900))}</pre>
+        <div class="found-score-bar">
+          <div class="found-score-fill" style="width:${toolExec.status === 'ok' ? 100 : 35}%;"></div>
+        </div>
+      `;
+      foundItems.appendChild(card);
+      foundItems.scrollTop = foundItems.scrollHeight;
+    }
+
+    function setMoeBridgeStage(stageName) {
+      const stepsEl = document.getElementById('agentMoeBridgeSteps');
+      if (!stepsEl) return;
+      const order = ["attn", "router", "experts", "sum"];
+      const targetIdx = order.indexOf(stageName);
+      stepsEl.querySelectorAll('.moe-chip').forEach(chip => {
+        const idx = order.indexOf(chip.dataset.moeStage);
+        chip.classList.remove('is-active', 'is-done');
+        if (targetIdx === -1) return;
+        if (idx < targetIdx) chip.classList.add('is-done');
+        else if (idx === targetIdx) chip.classList.add('is-active');
+      });
+    }
+
+    function resetSearchUI() {
       if (activeTimer) {
         clearInterval(activeTimer);
         activeTimer = null;
       }
-      renderPipelineSkeleton(plan);
+      state.activeMoeCategories = [];
+      setMoeBridgeStage(null);
+      renderLangChainFlowSkeleton();
       traceList.innerHTML = "";
       foundItems.innerHTML = "";
       aggregatorBox.style.display = "none";
       aggregatorContent.innerHTML = "";
       progressFill.style.width = "0%";
-      progressLabel.textContent = "0% — Preparando busca...";
-      stepCounter.textContent = `0 / ${plan.steps.length} etapas`;
-      sourceCounter.textContent = "0 fontes";
+      progressLabel.textContent = "0% — Iniciando LangChain Architecture Flow...";
+      stepCounter.textContent = "0 / 7 etapas";
+      sourceCounter.textContent = "0 tool calls";
       statusBadge.className = "agent-status-pill is-searching";
-      statusText.textContent = `Buscando (${plan.label})...`;
+      statusText.textContent = "Executando busca real via LangChain...";
     }
 
-    function runAnimatedSearch() {
+    async function runRealOrchestratedSearch() {
       const query = searchInput.value.trim();
-      const selectedMode = scenarioSelect.value === "auto"
-        ? detectScenarioFromQuery(query)
-        : scenarioSelect.value;
+      if (!query) return;
 
-      const plan = buildScenarioPlan(selectedMode, query);
-      resetSearchUI(plan);
+      const mode = scenarioSelect ? scenarioSelect.value : "auto";
+      const modelName = modelSelect ? modelSelect.value : "openai/gpt-6.1-sol";
+      resetSearchUI();
 
-      let stepIdx = 0;
-      let totalFoundCount = 0;
-      const totalSteps = plan.steps.length;
+      // Sincroniza a arquitetura principal do Transformer passando da Atenção para o MoE
+      promptInput.value = query;
+      state.prompt = query;
+      updatePromptStats();
+      applyStep(2, true); // Passo 3: Self-Attention
+      setMoeBridgeStage("attn");
 
-      function executeNextStep() {
-        if (stepIdx >= totalSteps) {
-          clearInterval(activeTimer);
-          activeTimer = null;
-          pipelineBoard.querySelectorAll('.pipeline-node-card').forEach(c => {
-            c.classList.remove('is-active');
-            c.classList.add('is-done');
-          });
-          pipelineBoard.querySelectorAll('.pipeline-arrow').forEach(a => {
-            a.classList.remove('is-active');
-            a.classList.add('is-done');
-          });
-          traceList.querySelectorAll('.agent-trace-item').forEach(el => el.classList.add('is-done'));
+      // Anima etapas iniciais 1 -> 4 enquanto a chamada real ao FastAPI/LangChain acontece
+      const preStages = [
+        { id: "user_input", pct: 12, label: "1. User Input", tag: "Command", desc: `Entrada recebida: "${query}"`, code: `POST /api/orchestrate {"mode": "${mode}", "model": "${modelName}"}` },
+        { id: "prompt_template", pct: 24, label: "2. Prompt Template", tag: "ChatPromptTemplate", desc: "Formatando instruções do sistema, histórico de memória e variáveis.", code: `prompt_template.format_messages(mode="${mode}", input=...)` },
+        { id: "llm_model", pct: 36, label: "3. LLM / Chat Model", tag: modelName, desc: `Conectando via OpenRouter ao modelo ${modelName} com 10 ferramentas vinculadas.`, code: `llm.bind_tools([buscar_em_arquivos, ler_arquivo, web_search, consultar_api, ...])` },
+        { id: "chain", pct: 48, label: "4. Chain (Pipeline)", tag: "Tool Calling Loop", desc: "Transformer Attention -> MoE Router preparando seleção de especialistas...", code: `chain.invoke(messages)` }
+      ];
 
-          progressFill.style.width = "100%";
-          progressLabel.textContent = "100% — Busca e agregação concluídas";
-          statusBadge.className = "agent-status-pill is-done";
-          statusText.textContent = `Concluído (${totalFoundCount} fonte(s))`;
-          aggregatorBox.style.display = "block";
-          aggregatorContent.innerHTML = plan.summary;
-          return;
+      let preIdx = 0;
+      function stepPreAnimation() {
+        if (preIdx >= preStages.length) return;
+        const st = preStages[preIdx];
+        if (preIdx > 0) setNodeState(preStages[preIdx - 1].id, 'is-done');
+        setNodeState(st.id, 'is-active');
+        if (st.id === "llm_model" || st.id === "chain") {
+          setMoeBridgeStage("router");
+          applyStep(4, true); // Passo 5: MoE Router ativo no diagrama SVG principal
         }
-
-        const step = plan.steps[stepIdx];
-        stepIdx++;
-
-        // Atualiza destaque do nó ativo no pipeline
-        pipelineBoard.querySelectorAll('.pipeline-node-card').forEach(card => {
-          if (card.dataset.nodeId === step.nodeId) {
-            card.classList.add('is-active');
-            card.classList.remove('is-done');
-          } else if (card.classList.contains('is-active')) {
-            card.classList.remove('is-active');
-            card.classList.add('is-done');
-          }
-        });
-
-        const pct = Math.round((stepIdx / totalSteps) * 100);
-        progressFill.style.width = `${pct}%`;
-        progressLabel.textContent = `${pct}% — ${step.title}`;
-        stepCounter.textContent = `${stepIdx} / ${totalSteps} etapas`;
-
-        // Adiciona etapa no rastreamento
-        const traceEl = document.createElement('div');
-        traceEl.className = 'agent-trace-item';
-        traceEl.innerHTML = `
-          <div class="agent-trace-head">
-            <span class="agent-trace-title">${escapeXml(step.title)}</span>
-            <span class="agent-trace-tag">${escapeXml(step.tag)}</span>
-          </div>
-          <div class="agent-trace-desc">${escapeXml(step.desc)}</div>
-          <div class="agent-trace-code">${escapeXml(step.code)}</div>
-        `;
-        traceList.appendChild(traceEl);
-        traceList.scrollTop = traceList.scrollHeight;
-
-        // Se a etapa encontrou informações, revela card(s) animados
-        if (step.found && step.found.length > 0) {
-          step.found.forEach(item => {
-            totalFoundCount++;
-            const card = document.createElement('div');
-            card.className = 'agent-found-card';
-            card.innerHTML = `
-              <div class="found-card-top">
-                <span class="found-source-badge ${item.type}">${escapeXml(item.source)}</span>
-                <span class="found-score">${escapeXml(item.score)}</span>
-              </div>
-              <div class="found-card-title">${escapeXml(item.title)}</div>
-              <div class="found-card-body">${escapeXml(item.body)}</div>
-              <div class="found-score-bar">
-                <div class="found-score-fill" style="width:${item.pct}%;"></div>
-              </div>
-            `;
-            foundItems.appendChild(card);
-          });
-          sourceCounter.textContent = `${totalFoundCount} fonte(s)`;
-          foundItems.scrollTop = foundItems.scrollHeight;
-        }
+        progressFill.style.width = `${st.pct}%`;
+        progressLabel.textContent = `${st.pct}% — ${st.label}`;
+        stepCounter.textContent = `${preIdx + 1} / 7 etapas`;
+        appendTrace(st.label, st.tag, st.desc, st.code);
+        preIdx++;
       }
 
-      executeNextStep();
-      activeTimer = setInterval(executeNextStep, 950);
+      stepPreAnimation();
+      const preTimer = setInterval(stepPreAnimation, 420);
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/orchestrate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, mode, session_id: "web-ui", model_name: modelName })
+        });
+
+        clearInterval(preTimer);
+        while (preIdx < preStages.length) {
+          stepPreAnimation();
+        }
+        preStages.forEach(s => setNodeState(s.id, 'is-done'));
+
+        if (!resp.ok) {
+          const errData = await resp.json().catch(() => ({ detail: resp.statusText }));
+          throw new Error(errData.detail || `HTTP ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        const tools = data.tool_executions || [];
+
+        // Etapa 5: Agent & Tools (anima cada tool call real e acende os Experts correspondentes no MoE!)
+        setNodeState("agent_tools", "is-active");
+        setMoeBridgeStage("experts");
+        const bridge = document.getElementById('lcToolsBridge');
+        if (bridge) bridge.classList.add('is-active');
+
+        let tIdx = 0;
+        function revealNextTool() {
+          if (tIdx >= tools.length) {
+            clearInterval(activeTimer);
+            activeTimer = null;
+            setNodeState("agent_tools", "is-done");
+            setMoeBridgeStage("sum");
+            if (bridge) bridge.classList.remove('is-active');
+            tools.forEach(t => setToolState(t.category, "is-done"));
+            renderFlowchart();
+
+            // Etapa 6: Memory
+            setNodeState("memory", "is-done");
+            progressFill.style.width = "88%";
+            progressLabel.textContent = "88% — 6. Memory (Contexto atualizado)";
+            stepCounter.textContent = "6 / 7 etapas";
+            appendTrace(
+              "6. Memory (Contexto Salvo)",
+              `sessão: ${data.session_id}`,
+              `Histórico atualizado no MemoryStore (${data.memory_count} mensagens armazenadas).`,
+              `memory.add_message("${data.session_id}", user + assistant)`
+            );
+
+            // Etapa 7: Output
+            setTimeout(() => {
+              setNodeState("output", "is-done");
+              document.querySelectorAll('#agentMoeBridgeSteps .moe-chip').forEach(c => {
+                c.classList.remove('is-active');
+                c.classList.add('is-done');
+              });
+              progressFill.style.width = "100%";
+              progressLabel.textContent = `100% — 7. Output concluído em ${data.duration_ms} ms`;
+              stepCounter.textContent = "7 / 7 etapas";
+              appendTrace(
+                "7. Output (Resposta Final)",
+                `${data.duration_ms} ms`,
+                "Saída somada no nó (+) do MoE e consolidada pelo LangChain.",
+                null
+              );
+              traceList.querySelectorAll('.agent-trace-item').forEach(el => el.classList.add('is-done'));
+              statusBadge.className = "agent-status-pill is-done";
+              statusText.textContent = `Concluído (${tools.length} tool call(s) reais)`;
+              aggregatorBox.style.display = "block";
+              aggregatorContent.innerHTML = escapeXml(data.final_answer).replace(/\n/g, "<br>");
+              initKaTeX();
+            }, 450);
+            return;
+          }
+
+          const tc = tools[tIdx++];
+          setToolState(tc.category, "is-active");
+          if (!state.activeMoeCategories.includes(tc.category)) {
+            state.activeMoeCategories.push(tc.category);
+          }
+          renderFlowchart(); // Ilumina no SVG principal o Expert do MoE correspondente à tool!
+
+          const pct = Math.min(82, 52 + Math.round((tIdx / Math.max(1, tools.length)) * 28));
+          progressFill.style.width = `${pct}%`;
+          progressLabel.textContent = `${pct}% — 5. MoE Expert + Tool: ${tc.tool}()`;
+          stepCounter.textContent = "5 / 7 etapas";
+          sourceCounter.textContent = `${tIdx} tool call(s)`;
+
+          appendTrace(
+            `5. MoE Expert (${tc.category}) -> ${tc.tool}`,
+            `${tc.category} • ${tc.duration_ms} ms`,
+            `O Transformer roteou via MoE para o especialista de "${tc.category}" e executou ${tc.tool}().`,
+            `${tc.tool}(${JSON.stringify(tc.args)})`
+          );
+          appendFoundCard(tc);
+        }
+
+        if (tools.length === 0) {
+          revealNextTool();
+        } else {
+          revealNextTool();
+          activeTimer = setInterval(revealNextTool, 700);
+        }
+      } catch (err) {
+        clearInterval(preTimer);
+        statusBadge.className = "agent-status-pill";
+        statusText.textContent = "Backend FastAPI offline ou erro";
+        progressLabel.textContent = "Erro ao conectar em http://127.0.0.1:8000/api/orchestrate";
+        appendTrace(
+          "Backend FastAPI não acessível",
+          "http://127.0.0.1:8000",
+          `Não foi possível executar a busca real: ${err.message}. Inicie o servidor FastAPI do ai_orchestrator.`,
+          `cd ai_orchestrator && .\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload`
+        );
+        aggregatorBox.style.display = "block";
+        aggregatorContent.innerHTML = `<strong>Para ativar as buscas reais no backend:</strong><br>Execute no terminal:<br><code>cd ai_orchestrator</code><br><code>.\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload</code>`;
+      }
     }
 
-    btnRun.addEventListener('click', runAnimatedSearch);
+    btnRun.addEventListener('click', runRealOrchestratedSearch);
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        runAnimatedSearch();
+        runRealOrchestratedSearch();
       }
     });
 
@@ -3882,15 +3674,14 @@ document.addEventListener('DOMContentLoaded', () => {
         activeTimer = null;
       }
       searchInput.value = "";
-      const plan = buildScenarioPlan(scenarioSelect.value === "auto" ? "multiagent" : scenarioSelect.value, "");
-      renderPipelineSkeleton(plan);
-      traceList.innerHTML = '<div class="agent-empty-state">Digite uma consulta acima e clique em <strong>Buscar &amp; Animar</strong>.</div>';
-      foundItems.innerHTML = '<div class="agent-empty-state">Nenhuma busca executada no momento.</div>';
+      renderLangChainFlowSkeleton();
+      traceList.innerHTML = '<div class="agent-empty-state">Digite um comando e clique em <strong>Buscar Real &amp; Animar</strong>.</div>';
+      foundItems.innerHTML = '<div class="agent-empty-state">As chamadas de ferramentas reais aparecerão aqui.</div>';
       aggregatorBox.style.display = "none";
       progressFill.style.width = "0%";
       progressLabel.textContent = "0% — Aguardando início da busca";
-      stepCounter.textContent = "0 / 0 etapas";
-      sourceCounter.textContent = "0 fontes";
+      stepCounter.textContent = "0 / 7 etapas";
+      sourceCounter.textContent = "0 tool calls";
       statusBadge.className = "agent-status-pill";
       statusText.textContent = "Pronto para buscar";
     });
@@ -3903,12 +3694,11 @@ document.addEventListener('DOMContentLoaded', () => {
         chip.classList.add('active');
         searchInput.value = chip.dataset.query || "";
         scenarioSelect.value = chip.dataset.scenario || "auto";
-        runAnimatedSearch();
+        runRealOrchestratedSearch();
       });
     }
 
-    // Render inicial do esqueleto do pipeline
-    renderPipelineSkeleton(buildScenarioPlan("multiagent", searchInput.value));
+    renderLangChainFlowSkeleton();
   }
 
   init();

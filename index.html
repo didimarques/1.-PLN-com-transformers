@@ -15,7 +15,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20261116">
+  <link rel="stylesheet" href="styles.css?v=20261118">
 </head>
 <body data-theme="light">
 
@@ -169,7 +169,7 @@
           </div>
           <div class="milestone" data-step="4">
             <span class="milestone-dot"></span>
-            <span class="milestone-label">5. MLP & Residual</span>
+            <span class="milestone-label">5. MoE (Top-K) &amp; Residual</span>
           </div>
           <div class="milestone" data-step="5">
             <span class="milestone-dot"></span>
@@ -278,32 +278,36 @@
 
       <!-- Chips de Cenários Prontos -->
       <div class="agent-presets-bar">
-        <span class="presets-label">Cenários de busca:</span>
+        <span class="presets-label">Comandos reais (LangChain + Tools):</span>
         <div class="preset-buttons" id="agentPresetChips">
-          <button type="button" class="preset-chip agent-preset-chip active" data-scenario="multiagent" data-query="Compare o faturamento de outubro com os resultados do relatório comercial e pesquise as tendências do mercado.">🧠 Multiagente (Modelo B)</button>
-          <button type="button" class="preset-chip agent-preset-chip" data-scenario="files_rag" data-query="Busque no relatório comercial em PDF as metas do Q4 e a política de descontos.">📄 3.3 Arquivos &amp; RAG (PDF/pgvector)</button>
-          <button type="button" class="preset-chip agent-preset-chip" data-scenario="rest_api" data-query="Consultar dados cadastrais do cliente CPF 123.456.789-00 na API.">🔌 3.4 Consumo de API REST</button>
-          <button type="button" class="preset-chip agent-preset-chip" data-scenario="web_search" data-query="Pesquise na internet as principais tendências de mercado de IA em 2026.">🌐 3.5 Pesquisa Web (Tavily)</button>
-          <button type="button" class="preset-chip agent-preset-chip" data-scenario="python_process" data-query="Executar processo gerar_relatorio_vendas para mês 10 de 2026.">⚙️ 3.6 Processo Python</button>
-          <button type="button" class="preset-chip agent-preset-chip" data-scenario="database_sql" data-query="Consultar total de vendas e faturamento de outubro no PostgreSQL.">🗄️ Banco PostgreSQL</button>
+          <button type="button" class="preset-chip agent-preset-chip active" data-scenario="auto" data-query="Busque nos arquivos qual foi o faturamento de outubro e a política de descontos Q4, e calcule quanto falta para a meta de 500000.">🧠 Orquestração Completa (Arquivos + Calc)</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="files" data-query="Busque nos arquivos da pasta storage sobre arquitetura RAG e chunks.">📄 Arquivos (storage/)</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="web" data-query="Pesquise na internet o que são Redes Neurais Recorrentes e Transformers.">🌐 Web Search (Live)</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="api" data-query="Consulte o endereço do CEP 01001000 via API REST.">🔌 API REST (ViaCEP)</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="database" data-query="Verifique o status do PostgreSQL, versão do pgvector e contagem das tabelas.">🗄️ Banco de Dados (PostgreSQL)</button>
+          <button type="button" class="preset-chip agent-preset-chip" data-scenario="process" data-query="Gere o relatório de vendas do mês 10 de 2026 usando o processo Python.">⚙️ Processo Python</button>
         </div>
       </div>
 
       <!-- Barra de Busca -->
       <div class="agent-search-controls">
         <div class="agent-search-input-wrap">
-          <input type="text" id="agentSearchInput" value="Compare o faturamento de outubro com os resultados do relatório comercial e pesquise as tendências do mercado." placeholder="Digite o que deseja buscar (PDFs, SQL, API REST, Web ou Multiagente)..." autocomplete="off">
+          <input type="text" id="agentSearchInput" value="Busque nos arquivos qual foi o faturamento de outubro e a política de descontos Q4, e calcule quanto falta para a meta de 500000." placeholder="Digite um comando para o LangChain orquestrar Arquivos, Web, API, Banco ou Processos..." autocomplete="off">
         </div>
-        <select id="agentScenarioSelect" class="agent-scenario-select" title="Modo de roteamento da busca">
-          <option value="auto">🤖 Auto (Supervisor detecta)</option>
-          <option value="multiagent" selected>🧠 Modelo B: Multiagente Paralelo</option>
-          <option value="files_rag">📄 3.3 Leitura &amp; Busca Semântica (PDF + pgvector)</option>
-          <option value="rest_api">🔌 3.4 Consumo de APIs REST</option>
-          <option value="web_search">🌐 3.5 Pesquisa na Internet (Tavily)</option>
-          <option value="python_process">⚙️ 3.6 Execução de Processo Python</option>
-          <option value="database_sql">🗄️ Banco de Dados PostgreSQL</option>
+        <select id="agentScenarioSelect" class="agent-scenario-select" title="Ferramenta ou Modo de Orquestração">
+          <option value="auto" selected>🤖 Auto (LangChain Orquestra Tudo)</option>
+          <option value="files">📄 Direto: Arquivos (storage/)</option>
+          <option value="web">🌐 Direto: Web Search (Internet)</option>
+          <option value="api">🔌 Direto: API REST</option>
+          <option value="database">🗄️ Direto: Banco de Dados (PostgreSQL)</option>
+          <option value="process">⚙️ Direto: Processos Python / Calc</option>
         </select>
-        <button type="button" id="btnRunAgentSearch" class="btn btn-primary">🔍 Buscar &amp; Animar</button>
+        <select id="agentModelSelect" class="agent-scenario-select" title="Modelo LLM via OpenRouter">
+          <option value="openai/gpt-6.1-sol" selected>openai/gpt-6.1-sol</option>
+          <option value="google/gemini-4-hydrogen">google/gemini-4-hydrogen</option>
+          <option value="moonshotai/kimi-k3.1-pro">moonshotai/kimi-k3.1-pro</option>
+        </select>
+        <button type="button" id="btnRunAgentSearch" class="btn btn-primary">🔍 Buscar Real &amp; Animar</button>
         <button type="button" id="btnClearAgentSearch" class="btn-outline">Limpar</button>
       </div>
 
@@ -318,6 +322,23 @@
       <!-- Pipeline Visual Animado -->
       <div class="agent-pipeline-board" id="agentPipelineBoard">
         <!-- Renderizado dinamicamente por script.js conforme o cenário -->
+      </div>
+
+      <!-- Ponte Visual ao Vivo: Execução passando pelo Transformer + MoE -->
+      <div class="agent-moe-bridge-banner" id="agentMoeBridgeBanner">
+        <div class="moe-bridge-header">
+          <span>🧬 <strong>Fluxo Interno na Arquitetura Transformer + MoE:</strong></span>
+          <span class="moe-bridge-formula">$y = E_{\text{shared}}(x) + \sum_{i \in \text{TopK}(x)} g_i(x)\, E_i(x)$</span>
+        </div>
+        <div class="moe-bridge-steps" id="agentMoeBridgeSteps">
+          <span class="moe-chip" data-moe-stage="attn">1. Self-Attention</span>
+          <span class="moe-arrow">&rarr;</span>
+          <span class="moe-chip" data-moe-stage="router">2. MoE Router $g_i(x)$</span>
+          <span class="moe-arrow">&rarr;</span>
+          <span class="moe-chip" data-moe-stage="experts">3. Routed Experts (Top-K) + Shared Expert</span>
+          <span class="moe-arrow">&rarr;</span>
+          <span class="moe-chip" data-moe-stage="sum">4. Soma $\oplus$ &amp; Tool Calling</span>
+        </div>
       </div>
 
       <!-- Grid de Rastreamento + Resultados Descobertos -->
@@ -559,7 +580,7 @@
         <a href="#sec-self-attention">4. Mecanismo de Atenção ($Q, K, V$)</a>
         <a href="#sec-multi-head">5. Multi-Head Attention</a>
         <a href="#sec-residual-norm">6. Conexões Residuais e LayerNorm</a>
-        <a href="#sec-ffn">7. Redes Feed-Forward (MLP)</a>
+        <a href="#sec-ffn">7. Mixture of Experts (MoE)</a>
         <a href="#sec-unembedding">8. Unembedding, Logits e Softmax</a>
         <a href="#sec-sampling">9. Temperatura e Estratégias de Amostragem</a>
         <a href="#sec-arquiteturas">10. Encoder vs Decoder vs Ambos</a>
@@ -691,15 +712,44 @@
 
         <!-- SEÇÃO 7 -->
         <section id="sec-ffn" class="theory-block">
-          <h3>7. Redes Feed-Forward Position-Wise (MLP)</h3>
+          <h3>7. Mixture of Experts (MoE) em Substituição ao MLP Denso</h3>
           <p>
-            Após a atenção misturar o contexto entre tokens diferentes, cada token passa isoladamente por um Perceptron Multicamadas (MLP) com expansão de dimensão ($4 \times d_{model}$) e ativação não-linear GELU:
+            Em arquiteturas modernas (como DeepSeek-MoE, Mixtral e modelos de fronteira), a camada densa tradicional (MLP/FFN) é substituída por uma camada esparsa de <strong>Mixture of Experts (MoE)</strong>. Em vez de ativar todos os parâmetros para cada token, um <strong>Router</strong> (rede de roteamento) seleciona apenas os <strong>Top-K especialistas</strong> mais adequados, mantendo um <strong>Shared Expert</strong> sempre ativo para o conhecimento linguístico comum.
           </p>
+
+          <h4>7.1. Equação Fundamental do MoE (Top-K Esparso)</h4>
           <div class="math-callout">
-            $$\text{FFN}(\mathbf{x}) = \text{GELU}(\mathbf{x} W_1 + \mathbf{b}_1) W_2 + \mathbf{b}_2$$
+            $$y = \sum_{i \in \text{TopK}(x)} g_i(x)\, E_i(x)$$
           </div>
           <p>
-            Pesquisas recentes indicam que as camadas MLP funcionam como uma memória de armazenamento associativo de fatos e conhecimento do mundo.
+            Onde $E_i(x)$ é a saída do especialista $i$ (uma sub-rede FFN especializada) e $g_i(x)$ é o peso atribuído pelo <strong>Router</strong> ao especialista $i$ para o token de entrada $x$.
+          </p>
+
+          <h4>7.2. Função de Roteamento (Gating Network / Router)</h4>
+          <p>
+            O Router projeta o vetor oculto $x \in \mathbb{R}^{d_{model}}$ sobre os $N$ especialistas disponíveis através da matriz $W_g \in \mathbb{R}^{d_{model} \times N}$ e aplica Softmax apenas sobre os $K$ maiores escores:
+          </p>
+          <div class="math-callout">
+            $$H(x) = x W_g, \qquad g_i(x) = \frac{\exp(H_i(x))}{\sum_{j \in \text{TopK}(x)} \exp(H_j(x))} \quad \text{para } i \in \text{TopK}(x)$$
+          </div>
+
+          <h4>7.3. MoE Híbrido com Shared Expert + Routed Experts</h4>
+          <p>
+            Na arquitetura ilustrada neste projeto, combinamos os especialistas roteados ($E_0, \dots, E_{15}$) com um <strong>Shared Expert</strong> ($E_{\text{shared}}$) sempre ativo, somando suas saídas no nó $\oplus$:
+          </p>
+          <div class="math-callout">
+            $$y = E_{\text{shared}}(x) + \sum_{i \in \text{TopK}(x)} g_i(x)\, E_i(x)$$
+          </div>
+
+          <h4>7.4. Balanceamento de Carga (Load Balancing Loss)</h4>
+          <p>
+            Para evitar que o Router envie todos os tokens apenas para os mesmos especialistas, adiciona-se durante o treinamento uma perda auxiliar de balanceamento entre os $N$ especialistas:
+          </p>
+          <div class="math-callout">
+            $$\mathcal{L}_{\text{aux}} = \alpha \cdot N \sum_{i=1}^{N} f_i \cdot P_i$$
+          </div>
+          <p>
+            Onde $f_i$ é a fração de tokens roteados para o especialista $i$ e $P_i$ é a probabilidade média atribuída pelo Router ao especialista $i$. Isso garante especialização modular com custo computacional constante por token!
           </p>
         </section>
 
@@ -796,6 +846,6 @@
     </div>
   </footer>
 
-  <script src="script.js?v=20261116"></script>
+  <script src="script.js?v=20261118"></script>
 </body>
 </html>
