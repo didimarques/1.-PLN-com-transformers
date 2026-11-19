@@ -41,7 +41,41 @@ document.addEventListener('DOMContentLoaded', () => {
     revealedCandidatesCount: 0,
     isRevealingPredictions: false,
     revelationTimer: null,
-    activeMoeCategories: []
+    activeMoeCategories: [],
+    selectedArchitecture: 'decoder_moe',
+    liveSearchPhase: 'idle',
+    liveToolName: ''
+  };
+
+  const ARCH_PROFILES = {
+    decoder_moe: {
+      name: "Decoder-Only + MoE (GPT-6.1 / Kimi-K3.1 / DeepSeek)",
+      desc: "Máscara causal triangular (token só enxerga anteriores) + Mixture of Experts (Top-K Router) que seleciona especialistas de ferramentas antes da geração autoregressiva.",
+      attnTitle: "Causal Self-Attention (Máscara Triangular)",
+      mlpTitle: "MoE (Top-K)",
+      outTitle: "Probabilities (Next-Token)"
+    },
+    encoder_only: {
+      name: "Encoder-Only (BERT / RoBERTa)",
+      desc: "Atenção 100% bidirecional (todos os tokens atendem a todos sem máscara causal) + Dense FFN + Pooling [CLS] para compreensão semântica, classificação e roteamento de intenção.",
+      attnTitle: "Bidirectional Self-Attention (Full)",
+      mlpTitle: "Dense FFN + [CLS]",
+      outTitle: "[CLS] Intent & Entities"
+    },
+    encoder_decoder: {
+      name: "Encoder-Decoder (T5 / BART)",
+      desc: "Encoder bidirecional processa toda a busca e injeta Chaves/Valores (K,V) via Cross-Attention no Decoder causal, ideal para tradução, síntese e transformação estruturada.",
+      attnTitle: "Encoder + Cross-Attention Bridge",
+      mlpTitle: "Cross-Attn + FFN",
+      outTitle: "Seq2Seq Output"
+    },
+    multimodal_moe: {
+      name: "Multimodal Sparse MoE (Gemini-4-Hydrogen)",
+      desc: "Embeddings unificados (texto + tabelas + web + documentos) com atenção global esparsa e roteamento MoE de alta capacidade para verificação cruzada com múltiplas ferramentas.",
+      attnTitle: "Global Sparse Attention + Tools",
+      mlpTitle: "Sparse MoE + Tools",
+      outTitle: "Grounded Synthesis"
+    }
   };
 
   // ==================== DEFINIÇÃO DAS 7 ETAPAS DA JORNADA ANIMADA ====================
@@ -2439,6 +2473,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ==================== RENDERIZADOR DO FLUXOGRAMA SANKEY ====================
   function renderFlowchart() {
+    const archKey = state.selectedArchitecture || 'decoder_moe';
+    const archProfile = ARCH_PROFILES[archKey] || ARCH_PROFILES.decoder_moe;
+    const isBidirectional = archKey === 'encoder_only';
+    const isEncDec = archKey === 'encoder_decoder';
+    const isLiveRunning = state.liveSearchPhase && state.liveSearchPhase !== 'idle';
+
+    const expTextEl = document.getElementById('archExplanationText');
+    const liveBadgeEl = document.getElementById('archLivePhaseBadge');
+    if (expTextEl) {
+      expTextEl.innerHTML = `<strong>${escapeXml(archProfile.name)}:</strong> ${escapeXml(archProfile.desc)}`;
+    }
+    if (liveBadgeEl) {
+      const phaseLabels = {
+        idle: "Aguardando busca do usuário",
+        embedding: "🔄 Tokenizando & Vetorizando busca real...",
+        attention: "⚡ Calculando Self-Attention da pergunta...",
+        moe_router: "🧭 Roteando especialistas / ferramentas...",
+        tool_exec: `🛠️ Executando Tool: ${state.liveToolName || "ferramenta"}`,
+        output: "✅ Síntese concluída com dados reais"
+      };
+      liveBadgeEl.textContent = phaseLabels[state.liveSearchPhase] || phaseLabels.idle;
+    }
+
     const text = state.prompt;
     const tokens = extractTokens(text);
     state.tokens = tokens;
@@ -2487,16 +2544,16 @@ document.addEventListener('DOMContentLoaded', () => {
       <!-- Attention -->
       <g>
         <text x="${xAttentionBox + 20}" y="28" class="svg-header-title" text-anchor="middle">Transformer Block ${state.selectedBlock}</text>
-        <text x="${xAttentionBox + 20}" y="48" class="svg-header-text clickable-title svg-zoom-trigger" data-modal="attention" text-anchor="middle">Multi-head Self Attention</text>
+        <text x="${xAttentionBox + 20}" y="48" class="svg-header-text clickable-title svg-zoom-trigger" data-modal="attention" text-anchor="middle">${escapeXml(archProfile.attnTitle)}</text>
         <g class="svg-zoom-btn svg-zoom-trigger" data-modal="attention" title="Detalhamento Matemático da Auto-Atenção">
-          <rect x="${xAttentionBox + 102}" y="32" width="24" height="24" rx="5" class="zoom-btn-bg" />
-          <text x="${xAttentionBox + 114}" y="48" text-anchor="middle" class="zoom-btn-icon">🔍</text>
+          <rect x="${xAttentionBox + 122}" y="32" width="24" height="24" rx="5" class="zoom-btn-bg" />
+          <text x="${xAttentionBox + 134}" y="48" text-anchor="middle" class="zoom-btn-icon">🔍</text>
         </g>
       </g>
 
-      <!-- MoE (Mixture of Experts) -->
+      <!-- MoE (Mixture of Experts) / FFN -->
       <g>
-        <text x="${xMLP + 42}" y="48" class="svg-header-title clickable-title svg-zoom-trigger" data-modal="mlp" text-anchor="middle">MoE (Top-K)</text>
+        <text x="${xMLP + 42}" y="48" class="svg-header-title clickable-title svg-zoom-trigger" data-modal="mlp" text-anchor="middle">${escapeXml(archProfile.mlpTitle)}</text>
         <g class="svg-zoom-btn svg-zoom-trigger" data-modal="mlp" title="Detalhamento Matemático do Mixture of Experts (MoE)">
           <rect x="${xMLP + 90}" y="32" width="24" height="24" rx="5" class="zoom-btn-bg" />
           <text x="${xMLP + 102}" y="48" text-anchor="middle" class="zoom-btn-icon">🔍</text>
@@ -2538,7 +2595,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         <path d="M ${xEmbedding + 4} ${y} 
                  C ${xEmbedding + 35} ${y}, ${xQKV - 35} ${y}, ${xQKV - 14} ${y}" 
-              class="svg-stream-path stream-token-${i}" />
+              class="svg-stream-path stream-token-${i} ${isLiveRunning && (state.liveSearchPhase === 'embedding' || state.liveSearchPhase === 'attention') ? 'svg-flow-pulse' : ''}" />
 
         <g transform="translate(${xQKV - 12}, ${y - 18})">
           <rect x="0" y="0" width="16" height="11" rx="2" fill="rgba(59, 130, 246, 0.18)" stroke="#3b82f6" stroke-width="0.9" />
@@ -2604,19 +2661,20 @@ document.addEventListener('DOMContentLoaded', () => {
       for (let c = 0; c < N; c++) {
         const cx = boxX + 20 + c * matrixStep;
         
-        if (c > r) {
+        if (c > r && !isBidirectional && !isEncDec) {
           svg += `
             <circle cx="${cx}" cy="${cy}" r="2" class="svg-attn-masked" 
                     data-type="masked" data-row="${r}" data-col="${c}" />
           `;
         } else {
           const weight = getHeadWeight(state.selectedHead, r, c);
+          const cellColor = isBidirectional ? "#0ea5e9" : (isEncDec && c > r) ? "#10b981" : "#7c3aed";
 
           const radius = 2.5 + weight * 5.5;
           const opacity = 0.25 + weight * 0.75;
 
           svg += `
-            <circle cx="${cx}" cy="${cy}" r="${radius}" fill="#7c3aed" opacity="${opacity}" class="svg-attn-circle"
+            <circle cx="${cx}" cy="${cy}" r="${radius}" fill="${cellColor}" opacity="${opacity}" class="svg-attn-circle"
                     data-type="attention-cell" data-row="${r}" data-col="${c}" data-weight="${(weight*100).toFixed(1)}"
                     data-q="${escapeXml(tokens[r])}" data-k="${escapeXml(tokens[c])}" />
           `;
@@ -2660,12 +2718,12 @@ document.addEventListener('DOMContentLoaded', () => {
         <rect x="${moeBoxX}" y="${moeBoxY}" width="${moeBoxW}" height="${moeBoxH}" rx="8"
               fill="${moeActive ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.05)'}"
               stroke="${moeActive ? '#0284c7' : 'var(--border-color)'}" stroke-width="${moeActive ? '2' : '1.2'}" />
-        <text x="${moeBoxX + moeBoxW / 2}" y="${moeBoxY + 15}" font-size="9.5" font-weight="800" fill="#0284c7" text-anchor="middle">Mixture of Experts</text>
+        <text x="${moeBoxX + moeBoxW / 2}" y="${moeBoxY + 15}" font-size="9.5" font-weight="800" fill="#0284c7" text-anchor="middle">${escapeXml(archProfile.mlpTitle)}</text>
 
         <!-- Caixa Routed Experts -->
         <rect x="${moeBoxX + 7}" y="${moeBoxY + 23}" width="${moeBoxW - 14}" height="156" rx="6"
               fill="rgba(236, 72, 153, 0.08)" stroke="rgba(236, 72, 153, 0.4)" stroke-width="1" />
-        <text x="${moeBoxX + moeBoxW / 2}" y="${moeBoxY + 36}" font-size="8.5" font-weight="700" fill="#be185d" text-anchor="middle">Routed Experts (Top-K)</text>
+        <text x="${moeBoxX + moeBoxW / 2}" y="${moeBoxY + 36}" font-size="8.5" font-weight="700" fill="#be185d" text-anchor="middle">${isBidirectional ? 'Dense FFN + [CLS]' : isEncDec ? 'Cross-Attn (K,V×Q)' : 'Routed Experts (Top-K)'}</text>
     `;
 
     expertDefs.forEach((exp, idx) => {
@@ -3550,6 +3608,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // Sincroniza a arquitetura principal do Transformer passando da Atenção para o MoE
       promptInput.value = query;
       state.prompt = query;
+      state.liveSearchPhase = "embedding";
+      state.liveToolName = "";
+      state.activeMoeCategories = [];
       updatePromptStats();
       applyStep(2, true); // Passo 3: Self-Attention
       setMoeBridgeStage("attn");
@@ -3565,9 +3626,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (ev.stage === "llm_model" || ev.stage === "chain") {
             setMoeBridgeStage("router");
+            state.liveSearchPhase = ev.stage === "llm_model" ? "attention" : "moe_router";
             applyStep(4, true); // Passo 5: MoE Router ativo no SVG principal
           } else if (ev.stage === "agent_tools") {
             setMoeBridgeStage("sum");
+            state.liveSearchPhase = "tool_exec";
+            renderFlowchart();
             const bridge = document.getElementById('lcToolsBridge');
             if (bridge) bridge.classList.remove('is-active');
           }
@@ -3584,6 +3648,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if (bridge) bridge.classList.add('is-active');
 
           setToolState(ev.category, "is-active");
+          state.liveSearchPhase = "tool_exec";
+          state.liveToolName = ev.tool || "";
           if (!state.activeMoeCategories.includes(ev.category)) {
             state.activeMoeCategories.push(ev.category);
           }
@@ -3603,6 +3669,9 @@ document.addEventListener('DOMContentLoaded', () => {
           setToolState(ev.category, "is-done");
           sourceCounter.textContent = `${toolCount} tool call(s)`;
           appendFoundCard(ev);
+          if (typeof window.recordToolTokenCost === "function") {
+            window.recordToolTokenCost(ev);
+          }
         } else if (ev.event === "output") {
           document.querySelectorAll('#agentMoeBridgeSteps .moe-chip').forEach(c => {
             c.classList.remove('is-active');
@@ -3614,6 +3683,11 @@ document.addEventListener('DOMContentLoaded', () => {
           progressLabel.textContent = `100% — Concluído em ${ev.duration_ms} ms`;
           aggregatorBox.style.display = "block";
           aggregatorContent.innerHTML = escapeXml(ev.final_answer || "").replace(/\n/g, "<br>");
+          if (typeof window.recordLlmTokenRun === "function") {
+            window.recordLlmTokenRun(ev);
+          }
+          state.liveSearchPhase = "output";
+          renderFlowchart();
           initKaTeX();
         } else if (ev.event === "error") {
           throw new Error(ev.detail || "Erro no stream LangChain");
@@ -3844,7 +3918,629 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ==================== 8. COMPARADOR DE TOKENS (LLM & TOOL CALLING) + PROMPT ====================
+  function initTokenComparator() {
+    const btnCompare = document.getElementById('btnRunLlmCompare');
+    const statusBar = document.getElementById('comparatorStatusBar');
+    const llmBarsEl = document.getElementById('llmCompareBars');
+    const llmCountEl = document.getElementById('llmCompareCount');
+    const toolBarsEl = document.getElementById('toolTokenBreakdown');
+    const toolCountEl = document.getElementById('toolCompareCount');
+    const qualityBadge = document.getElementById('promptQualityBadge');
+    const qualityFill = document.getElementById('promptQualityFill');
+    const checklistEl = document.getElementById('promptChecklistSummary');
+    const searchInput = document.getElementById('agentSearchInput');
+    const scenarioSelect = document.getElementById('agentScenarioSelect');
+
+    if (!llmBarsEl || !toolBarsEl) return;
+
+    const API_BASE = "http://127.0.0.1:8001";
+    const llmMetricsMap = new Map();
+    const toolMetricsMap = new Map();
+
+    function evaluatePromptQuality(text) {
+      const q = (text || "").trim();
+      const lower = q.toLowerCase();
+      if (!q) {
+        return {
+          score: 0,
+          label: "Vazio",
+          summary: "Digite um prompt acima para analisar a clareza semântica.",
+          hasAction: false,
+          hasSource: false,
+          hasParams: false,
+          goodLength: false,
+          domain: "database"
+        };
+      }
+
+      const hasAction = /consult|busc|pesquis|leia|ler|ger|calcul|compar|investig|list|verifiq|mostr|qual|quais|quando|onde|quem|quanto|como|inform|dig|responda/.test(lower);
+      const hasSource = /banco|postgres|sql|restaurante|compras|vendas|arquivo|pdf|storage|web|internet|api|cep|cpf|tavily|jogo|time|cbf|ge|notícia|noticia|preço|preco|clima|tempo|tabela|relatório|relatorio|site|página|pagina/.test(lower);
+      const hasParams = /\b(2024|2025|2026|19\d\d|20\d\d|\d{5}-?\d{3}|\d{3}\.\d{3}|janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|categoria|pdf|json|hoje|amanhã|amanha|próximo|proximo|último|ultimo|horário|horario|data|flamengo|palmeiras|total|valor|média|media)\b/.test(lower);
+      const goodLength = q.split(/\s+/).length >= 5;
+
+      let domain = "database";
+      if (/jogo|flamengo|palmeiras|web|internet|notícia|noticia|preço|preco|clima|tempo|site|página|pagina|quando|hoje/.test(lower)) {
+        domain = "web";
+      } else if (/arquivo|pdf|storage|ler|documento/.test(lower)) {
+        domain = "storage";
+      }
+
+      let score = 15;
+      if (hasAction) score += 25;
+      if (hasSource) score += 25;
+      if (hasParams) score += 20;
+      if (goodLength) score += 15;
+      score = Math.min(100, score);
+
+      const checks = [
+        `${hasAction ? "✅" : "⚠️"} Verbo/Intenção`,
+        `${hasSource ? "✅" : "⚠️"} Domínio/Fonte`,
+        `${hasParams ? "✅" : "⚠️"} Parâmetros/Filtros`,
+        `${goodLength ? "✅" : "⚠️"} Contexto suficiente`
+      ];
+
+      let label = "Baixa (Ambíguo)";
+      if (score >= 80) label = "Alta (Preciso & Econômico)";
+      else if (score >= 55) label = "Média (Parcial)";
+
+      return { score, label, summary: checks.join("  •  "), hasAction, hasSource, hasParams, goodLength, domain };
+    }
+
+    function updatePromptCards(q, res) {
+      const leftTag = document.getElementById('promptCardLeftTag');
+      const leftQuote = document.getElementById('promptCardLeftQuote');
+      const leftWhy = document.getElementById('promptCardLeftWhy');
+      const rightTag = document.getElementById('promptCardRightTag');
+      const rightQuote = document.getElementById('promptCardRightQuote');
+      const rightWhy = document.getElementById('promptCardRightWhy');
+      if (!leftTag || !leftQuote || !leftWhy || !rightTag || !rightQuote || !rightWhy) return;
+
+      const cleanQ = (q || "").trim();
+      if (!cleanQ) {
+        leftTag.textContent = "❌ Prompt Vago (Alto consumo & risco de erro)";
+        leftQuote.textContent = '"Me vê os dados de 2025 aí e faz um arquivo"';
+        leftWhy.innerHTML = '<strong>Impacto Semântico:</strong> O Transformer/MoE não sabe se "dados" refere-se ao banco PostgreSQL, arquivos em <code>storage/</code> ou Web. O LLM dispara múltiplas tool callings exploratórias (~2.500+ tokens extras).';
+        rightTag.textContent = "✅ Prompt Estruturado (Preciso & econômico)";
+        rightQuote.textContent = '"Consulte o total de compras do restaurante em 2025 no PostgreSQL e gere um relatório em PDF por categoria."';
+        rightWhy.innerHTML = '<strong>Impacto Semântico:</strong> Verbo de ação + fonte explícita + filtro temporal (<code>2025</code>) + formato final (<code>PDF</code>) direcionam a Atenção e o <strong>Router MoE</strong> diretamente para <code>consultar_compras_restaurante</code> e <code>gerar_pdf_relatorio</code>.';
+        return;
+      }
+
+      const missingParts = [];
+      if (!res.hasAction) missingParts.push("verbo/intenção clara");
+      if (!res.hasSource) missingParts.push("fonte explícita (Web, PostgreSQL ou storage/)");
+      if (!res.hasParams) missingParts.push("parâmetro temporal ou entidade específica");
+
+      if (res.score < 80) {
+        leftTag.textContent = `⚠️ Seu Prompt Atual (${res.score}% — Precisa de Refinamento)`;
+        leftQuote.textContent = `"${cleanQ}"`;
+        leftWhy.innerHTML = `<strong>Impacto Semântico:</strong> Faltam <strong>${escapeXml(missingParts.join(", ") || "detalhes de escopo")}</strong>. Sem esses sinais explícitos, a Self-Attention dispersa pesos entre múltiplos especialistas MoE, gerando chamadas extras de ferramentas e maior consumo de tokens.`;
+      } else {
+        leftTag.textContent = "❌ Como seria a versão vaga desta pergunta";
+        const vagueEx = res.domain === "web"
+          ? '"Vê aí quando é o jogo"'
+          : res.domain === "storage"
+          ? '"Lê os arquivos pra mim"'
+          : '"Me passa os dados do restaurante"';
+        leftQuote.textContent = vagueEx;
+        leftWhy.innerHTML = '<strong>Impacto Semântico:</strong> Sem especificar time/data, tabela ou arquivo exato, o roteador MoE precisa fazer buscas exploratórias em cascata (~2.000+ tokens extras) antes de convergir.';
+      }
+
+      if (res.domain === "web") {
+        rightTag.textContent = "✅ Versão Estruturada para Esta Busca Web";
+        rightQuote.textContent = `"Pesquise na web em fontes atualizadas e leia o conteúdo completo das páginas para responder de forma objetiva: ${cleanQ}"`;
+        rightWhy.innerHTML = '<strong>Impacto Semântico:</strong> A intenção explícita + escopo temporal direcionam a Atenção para <code>web_search</code> e <code>ler_pagina_web</code>, evitando consultas ao banco local e reduzindo tokens de tentativa e erro.';
+      } else if (res.domain === "storage") {
+        rightTag.textContent = "✅ Versão Estruturada para Documentos (Storage)";
+        rightQuote.textContent = `"Leia os arquivos correspondentes em storage/ e extraia exatamente o que foi pedido: ${cleanQ}"`;
+        rightWhy.innerHTML = '<strong>Impacto Semântico:</strong> Referenciar <code>storage/</code> e a saída desejada concentra os cabeçalhos de atenção em <code>ler_arquivo_storage</code>, evitando buscas web desnecessárias.';
+      } else {
+        rightTag.textContent = "✅ Versão Estruturada para Esta Consulta (PostgreSQL)";
+        rightQuote.textContent = `"Consulte no PostgreSQL os registros correspondentes e apresente o resultado consolidado: ${cleanQ}"`;
+        rightWhy.innerHTML = '<strong>Impacto Semântico:</strong> Verbo de consulta + fonte SQL explícita + filtros direcionam o <strong>Router MoE</strong> diretamente para <code>consultar_compras_restaurante</code> ou <code>consultar_vendas</code> com menor latência.';
+      }
+    }
+
+    function updatePromptAnalyzer() {
+      if (!searchInput || !qualityBadge || !qualityFill || !checklistEl) return;
+      const res = evaluatePromptQuality(searchInput.value);
+      qualityBadge.textContent = `Clareza: ${res.score}% — ${res.label}`;
+      qualityFill.style.width = `${res.score}%`;
+      checklistEl.textContent = res.summary;
+      updatePromptCards(searchInput.value, res);
+    }
+
+    function renderLlmBars() {
+      const entries = Array.from(llmMetricsMap.values());
+      llmCountEl.textContent = `${entries.length} modelo(s)`;
+      if (!entries.length) return;
+
+      const maxTot = Math.max(1, ...entries.map(e => e.total_tokens || 1));
+      llmBarsEl.innerHTML = entries.map(e => {
+        const inpPct = Math.round(((e.input_tokens || 0) / maxTot) * 100);
+        const toolPct = Math.round(((e.tool_calling_tokens || 0) / maxTot) * 100);
+        const outPct = Math.max(2, Math.round(((e.output_tokens || 0) / maxTot) * 100));
+        return `
+          <div class="compare-row-card">
+            <div class="compare-row-head">
+              <span>${escapeXml(e.model)}</span>
+              <span>${e.total_tokens} tokens &bull; ${e.duration_ms} ms</span>
+            </div>
+            <div class="compare-stacked-track" title="Azul: Entrada | Roxo: Tool Calling | Verde: Saída">
+              <div class="seg-input" style="width:${inpPct}%;"></div>
+              <div class="seg-tool" style="width:${toolPct}%;"></div>
+              <div class="seg-output" style="width:${outPct}%;"></div>
+            </div>
+            <div class="compare-row-metrics">
+              <span>🟦 Entrada: ${e.input_tokens}</span>
+              <span>🟪 Tool Calling: ${e.tool_calling_tokens}</span>
+              <span>🟩 Saída: ${e.output_tokens}</span>
+              <span>🔁 Chamadas LLM: ${e.llm_calls || 1}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderToolBars() {
+      const entries = Array.from(toolMetricsMap.values()).sort((a, b) => b.tokens - a.tokens);
+      toolCountEl.textContent = `${entries.length} tool(s)`;
+      if (!entries.length) {
+        toolBarsEl.innerHTML = '<div class="agent-empty-state">Nenhuma tool calling executada ainda nesta sessão.</div>';
+        return;
+      }
+
+      const maxTok = Math.max(1, ...entries.map(e => e.tokens || 1));
+      toolBarsEl.innerHTML = entries.map(e => {
+        const pct = Math.max(4, Math.round((e.tokens / maxTok) * 100));
+        return `
+          <div class="compare-row-card">
+            <div class="compare-row-head">
+              <span>${escapeXml(e.tool)} <small style="color:var(--text-muted);">(${escapeXml(e.category)})</small></span>
+              <span>~${e.tokens} tokens &bull; ${e.calls}x</span>
+            </div>
+            <div class="found-score-bar">
+              <div class="found-score-fill" style="width:${pct}%;background:linear-gradient(90deg, var(--accent-purple), var(--accent-primary));"></div>
+            </div>
+            <div class="compare-row-metrics">
+              <span>⏱️ Tempo acumulado: ${e.duration_ms.toFixed(0)} ms</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    window.recordToolTokenCost = function (ev) {
+      const key = ev.tool || "unknown";
+      const prev = toolMetricsMap.get(key) || { tool: key, category: ev.category || "other", tokens: 0, calls: 0, duration_ms: 0 };
+      prev.tokens += Number(ev.payload_tokens_est || 0);
+      prev.calls += 1;
+      prev.duration_ms += Number(ev.duration_ms || 0);
+      toolMetricsMap.set(key, prev);
+      renderToolBars();
+    };
+
+    window.recordLlmTokenRun = function (ev) {
+      const tu = ev.token_usage || {};
+      llmMetricsMap.set(ev.model || "modelo", {
+        model: ev.model || "modelo",
+        input_tokens: Number(tu.input_tokens || 0),
+        output_tokens: Number(tu.output_tokens || 0),
+        total_tokens: Number(tu.total_tokens || 0),
+        tool_calling_tokens: Number(tu.tool_calling_tokens || 0),
+        llm_calls: Number(tu.llm_calls || 1),
+        duration_ms: Number(ev.duration_ms || 0),
+      });
+      renderLlmBars();
+      if (statusBar) {
+        statusBar.innerHTML = `Última execução registrada: <strong>${escapeXml(ev.model)}</strong> consumiu <strong>${tu.total_tokens || 0} tokens</strong> (${tu.tool_calling_tokens || 0} em Tool Calling).`;
+      }
+    };
+
+    if (btnCompare) {
+      btnCompare.addEventListener('click', async () => {
+        const query = searchInput ? searchInput.value.trim() : "";
+        if (!query) return;
+        const mode = scenarioSelect ? scenarioSelect.value : "auto";
+
+        btnCompare.disabled = true;
+        btnCompare.textContent = "⏳ Comparando 3 LLMs...";
+        if (statusBar) statusBar.textContent = "Executando o mesmo prompt nos 3 modelos (GPT-6.1-Sol, Gemini-4-Hydrogen e Kimi-K3.1-Pro)...";
+
+        try {
+          const resp = await fetch(`${API_BASE}/api/compare-models`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query, mode })
+          });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json();
+
+          (data.comparisons || []).forEach(c => {
+            if (c.status !== "ok") return;
+            const tu = c.token_usage || {};
+            llmMetricsMap.set(c.model, {
+              model: c.model,
+              input_tokens: Number(tu.input_tokens || 0),
+              output_tokens: Number(tu.output_tokens || 0),
+              total_tokens: Number(tu.total_tokens || 0),
+              tool_calling_tokens: Number(tu.tool_calling_tokens || 0),
+              llm_calls: Number(tu.llm_calls || 1),
+              duration_ms: Number(c.duration_ms || 0),
+            });
+            (c.tool_executions || []).forEach(te => window.recordToolTokenCost(te));
+          });
+
+          renderLlmBars();
+          renderToolBars();
+          if (statusBar) statusBar.innerHTML = "✅ <strong>Comparação concluída!</strong> Veja acima o consumo real de tokens por LLM e por Tool Calling.";
+        } catch (err) {
+          if (statusBar) statusBar.innerHTML = `⚠️ Erro ao comparar modelos (${escapeXml(err.message)}).`;
+        } finally {
+          btnCompare.disabled = false;
+          btnCompare.textContent = "⚡ Comparar 3 LLMs (Real)";
+        }
+      });
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', updatePromptAnalyzer);
+    }
+    updatePromptAnalyzer();
+  }
+
+  function initTransformerJourney() {
+    const section = document.getElementById('jornada-transformers-modelos');
+    if (!section) return;
+
+    const searchInput = document.getElementById('agentSearchInput');
+    const promptPreview = document.getElementById('tjPromptPreview');
+    const tokenSummaryBadge = document.getElementById('tjTokenSummaryBadge');
+    const tokenRow = document.getElementById('tjTokenRow');
+    const attnSvg = document.getElementById('tjAttentionSvg');
+    const semanticInsight = document.getElementById('tjSemanticInsight');
+    const modelLanesEl = document.getElementById('tjModelLanes');
+    const stageSteps = Array.from(document.querySelectorAll('#tjStageTrack .tj-stage-step'));
+    const filterBtns = Array.from(document.querySelectorAll('#tjModelFilter .tj-filter-btn'));
+    const btnToggle = document.getElementById('btnTjTogglePlay');
+    const btnRestart = document.getElementById('btnTjRestart');
+
+    const DEFAULT_PROMPT = "Consulte o total de compras do restaurante em 2025 no PostgreSQL";
+    const MODELS = [
+      {
+        id: "openai/gpt-6.1-sol",
+        label: "GPT-6.1-Sol",
+        arch: "Dense + Tool Router",
+        dModel: 4096,
+        focusHint: "Atenção direta em verbo + entidade + ferramenta única",
+        baseLatency: "Compacto (2 chamadas)"
+      },
+      {
+        id: "google/gemini-4-hydrogen",
+        label: "Gemini-4-Hydrogen",
+        arch: "Sparse MoE + Multimodal",
+        dModel: 6144,
+        focusHint: "Atenção ampla com verificação cruzada entre contexto e banco",
+        baseLatency: "Verificação dupla (3 chamadas)"
+      },
+      {
+        id: "moonshotai/kimi-k3.1-pro",
+        label: "Kimi-K3.1-Pro",
+        arch: "Long-Context MoE",
+        dModel: 5120,
+        focusHint: "Cadeia longa de raciocínio + validação semântica profunda",
+        baseLatency: "Raciocínio extenso (3 chamadas)"
+      }
+    ];
+
+    let currentStage = 0;
+    let focusedTokenIdx = 0;
+    let selectedModel = "all";
+    let isPlaying = true;
+    let timerId = null;
+    let parsedTokens = [];
+
+    function hashTokenId(str) {
+      let h = 2166136261;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return (Math.abs(h) % 49000) + 1000;
+    }
+
+    function classifyTokenRole(tok) {
+      const l = tok.toLowerCase();
+      if (/^(consult|busc|pesquis|leia|ler|ger|calcul|compar|investig|list|verifiq|mostr|qual|quais|quando)/.test(l)) return "action";
+      if (/^(postgres|sql|banco|restaurante|compras|vendas|web|internet|tavily|storage|pdf|arquivo|flamengo|jogo|cep|cpf)/.test(l)) return "source";
+      if (/^(2024|2025|2026|\d{2,4}|total|categoria|hoje|amanhã|próximo|proximo)/.test(l)) return "param";
+      return "context";
+    }
+
+    function tokenizePrompt(text) {
+      const rawWords = (text || DEFAULT_PROMPT).trim().split(/\s+/).filter(Boolean).slice(0, 18);
+      const out = [];
+      rawWords.forEach(w => {
+        const clean = w.replace(/[.,!?;:]+$/g, "");
+        if (clean.length > 9 && /(mente|ção|ções|ando|endo|indo|mente)$/i.test(clean)) {
+          const splitAt = clean.length - 4;
+          out.push(clean.slice(0, splitAt), "##" + clean.slice(splitAt));
+        } else {
+          out.push(clean || w);
+        }
+      });
+      return out.map((tok, idx) => ({
+        idx,
+        text: tok,
+        id: hashTokenId(tok),
+        role: classifyTokenRole(tok.replace(/^##/, ""))
+      }));
+    }
+
+    function inferMultiAgentRoute(text) {
+      const l = (text || "").toLowerCase();
+      if (/flamengo|jogo|web|notícia|noticia|preço|preco|hoje|internet/.test(l)) {
+        return {
+          route: "Planejador → WebSearch + Leitor de Páginas → Síntese",
+          tools: "pesquisar_web (Tavily/DDG + HTML Reader)"
+        };
+      }
+      if (/arquivo|pdf|storage|ler|documento/.test(l)) {
+        return {
+          route: "Planejador → Leitor de Storage / PDF → Síntese",
+          tools: "ler_arquivo_storage / gerar_pdf_relatorio"
+        };
+      }
+      return {
+        route: "Planejador → Consulta SQL (PostgreSQL) → Síntese",
+        tools: "consultar_compras_restaurante / consultar_vendas"
+      };
+    }
+
+    function buildEmbeddingStrip(tokenObj, pos) {
+      const cells = [];
+      for (let d = 0; d < 8; d++) {
+        const val = Math.sin((tokenObj.id * 0.013) + d * 0.85 + pos * 0.45);
+        const norm = (val + 1) / 2;
+        const hue = tokenObj.role === "action" ? 215 : tokenObj.role === "source" ? 152 : tokenObj.role === "param" ? 268 : 200;
+        const light = Math.round(35 + norm * 42);
+        cells.push(`<span class="tj-emb-cell" style="background:hsl(${hue}, 82%, ${light}%);"></span>`);
+      }
+      return cells.join("");
+    }
+
+    function renderTokens() {
+      const activeText = (searchInput && searchInput.value.trim()) ? searchInput.value.trim() : DEFAULT_PROMPT;
+      parsedTokens = tokenizePrompt(activeText);
+      if (focusedTokenIdx >= parsedTokens.length) focusedTokenIdx = 0;
+
+      if (promptPreview) promptPreview.textContent = activeText;
+      if (tokenSummaryBadge) tokenSummaryBadge.textContent = `${parsedTokens.length} token(s) • d_model=4096..6144`;
+
+      const showEmb = currentStage >= 1;
+      tokenRow.innerHTML = parsedTokens.map((t, i) => {
+        const isFocused = i === focusedTokenIdx;
+        const isAttended = !isFocused && (t.role !== "context" || Math.abs(i - focusedTokenIdx) <= 2);
+        return `
+          <div class="tj-token-node role-${t.role} ${isFocused ? 'focused' : ''} ${isAttended && currentStage >= 2 ? 'attended' : ''}" data-idx="${i}" title="Clique para focar a Self-Attention neste token">
+            <span class="tj-token-text">${escapeXml(t.text)}</span>
+            <span class="tj-token-id">ID ${t.id}</span>
+            <div class="tj-emb-strip ${showEmb ? 'visible' : ''}">${buildEmbeddingStrip(t, i)}</div>
+            <span class="tj-pos-badge">PE(${i})</span>
+          </div>
+        `;
+      }).join("");
+
+      Array.from(tokenRow.querySelectorAll('.tj-token-node')).forEach(node => {
+        node.addEventListener('click', () => {
+          focusedTokenIdx = Number(node.getAttribute('data-idx') || 0);
+          currentStage = 2;
+          updateStageUI();
+        });
+      });
+
+      requestAnimationFrame(drawAttentionArcs);
+    }
+
+    function drawAttentionArcs() {
+      if (!attnSvg || !tokenRow) return;
+      const nodes = Array.from(tokenRow.querySelectorAll('.tj-token-node'));
+      if (!nodes.length || !nodes[focusedTokenIdx]) {
+        attnSvg.innerHTML = "";
+        return;
+      }
+
+      const stageRect = tokenRow.getBoundingClientRect();
+      const srcRect = nodes[focusedTokenIdx].getBoundingClientRect();
+      const x1 = srcRect.left - stageRect.left + srcRect.width / 2;
+      const y1 = 72;
+
+      const targets = parsedTokens
+        .map((t, idx) => ({ t, idx }))
+        .filter(({ t, idx }) => idx !== focusedTokenIdx && (t.role !== "context" || Math.abs(idx - focusedTokenIdx) <= 2))
+        .slice(0, 4);
+
+      const arcs = targets.map(({ t, idx }) => {
+        const dstRect = nodes[idx].getBoundingClientRect();
+        const x2 = dstRect.left - stageRect.left + dstRect.width / 2;
+        const midX = (x1 + x2) / 2;
+        const dist = Math.abs(x2 - x1);
+        const ctrlY = Math.max(8, 66 - Math.min(54, dist * 0.22));
+        const weight = t.role === "source" ? "0.91" : t.role === "param" ? "0.84" : "0.63";
+        const color = t.role === "source" ? "#10b981" : t.role === "param" ? "#8b5cf6" : "#3b82f6";
+        const opacity = currentStage >= 2 ? 0.92 : 0.25;
+        return `
+          <path class="tj-attn-arc" d="M ${x1} ${y1} Q ${midX} ${ctrlY} ${x2} ${y1}" stroke="${color}" stroke-width="${t.role === 'context' ? 1.8 : 2.8}" opacity="${opacity}" />
+          <text x="${midX}" y="${Math.max(12, ctrlY + 10)}" fill="${color}" font-size="10" font-family="JetBrains Mono, monospace" font-weight="700" text-anchor="middle" opacity="${opacity}">${weight}</text>
+        `;
+      }).join("");
+
+      attnSvg.innerHTML = arcs;
+    }
+
+    function updateSemanticInsight() {
+      if (!semanticInsight || !parsedTokens.length) return;
+      const focusTok = parsedTokens[focusedTokenIdx] || parsedTokens[0];
+      const activeText = (searchInput && searchInput.value.trim()) ? searchInput.value.trim() : DEFAULT_PROMPT;
+      const routeInfo = inferMultiAgentRoute(activeText);
+
+      const stageDescriptions = [
+        `<strong>Estágio 1 — Tokenização (BPE):</strong> O prompt foi segmentado em <strong>${parsedTokens.length} subpalavras</strong> com IDs discretos. Cada modelo converte esses IDs na primeira camada de entrada.`,
+        `<strong>Estágio 2 — Embeddings + Positional Encoding (E + PE):</strong> Cada token recebe um vetor denso (<code>d_model</code>) somado à sua posição <code>PE(pos)</code>, preservando ordem e significado antes da atenção.`,
+        `<strong>Estágio 3 — Multi-Head Self-Attention:</strong> O token em foco <code>"${escapeXml(focusTok.text)}"</code> projeta consultas (<strong>Q</strong>) contra chaves (<strong>K</strong>) dos demais tokens, ligando verbo de ação + fonte + parâmetros para compreender a intenção real.`,
+        `<strong>Estágio 4 — FFN &amp; Roteamento MoE:</strong> Os vetores contextualizados ativam especialistas semânticos que decidem a ferramenta correta: <code>${escapeXml(routeInfo.tools)}</code>.`,
+        `<strong>Estágio 5 — Jornada Multiagêntica:</strong> O Transformer dispara o fluxo <strong>${escapeXml(routeInfo.route)}</strong>, retornando os dados reais para a síntese final.`
+      ];
+      semanticInsight.innerHTML = stageDescriptions[currentStage] || stageDescriptions[0];
+    }
+
+    function renderModelLanes() {
+      if (!modelLanesEl) return;
+      const activeText = (searchInput && searchInput.value.trim()) ? searchInput.value.trim() : DEFAULT_PROMPT;
+      const routeInfo = inferMultiAgentRoute(activeText);
+      const miniSteps = ["Tok", "Emb+PE", "Attn", "MoE", "Agente"];
+
+      modelLanesEl.innerHTML = MODELS.map(m => {
+        const isDimmed = selectedModel !== "all" && selectedModel !== m.id;
+        const isHighlighted = selectedModel === m.id;
+        return `
+          <div class="tj-model-lane ${isDimmed ? 'dimmed' : ''} ${isHighlighted ? 'highlighted' : ''}" data-model="${m.id}">
+            <div class="tj-lane-head">
+              <span class="tj-lane-name">${escapeXml(m.label)}</span>
+              <span class="tj-lane-arch">${escapeXml(m.arch)}</span>
+            </div>
+            <div class="tj-pipeline-nodes">
+              ${miniSteps.map((st, idx) => `<div class="tj-mini-block ${idx === currentStage ? 'active' : ''}">${st}</div>`).join("")}
+            </div>
+            <div class="tj-lane-route">
+              <strong>Compreensão:</strong> ${escapeXml(m.focusHint)}<br/>
+              <strong>Rota:</strong> <code>${escapeXml(routeInfo.route)}</code>
+            </div>
+            <div class="tj-lane-stats">
+              <span>Tokens entrada: ~${parsedTokens.length}</span>
+              <span>d_model: ${m.dModel}</span>
+              <span>${escapeXml(m.baseLatency)}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function updateStageUI() {
+      stageSteps.forEach((step, idx) => {
+        step.classList.toggle('active', idx === currentStage);
+      });
+      renderTokens();
+      updateSemanticInsight();
+      renderModelLanes();
+    }
+
+    function advanceTick() {
+      currentStage = (currentStage + 1) % 5;
+      if (currentStage === 2 && parsedTokens.length > 0) {
+        const semanticCandidates = parsedTokens.filter(t => t.role !== "context");
+        if (semanticCandidates.length > 0) {
+          const nextCand = semanticCandidates[(Math.floor(Date.now() / 1500)) % semanticCandidates.length];
+          focusedTokenIdx = nextCand.idx;
+        } else {
+          focusedTokenIdx = (focusedTokenIdx + 1) % parsedTokens.length;
+        }
+      }
+      updateStageUI();
+    }
+
+    function startLoop() {
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(advanceTick, 1600);
+    }
+
+    if (btnToggle) {
+      btnToggle.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+          btnToggle.textContent = "⏸ Pausar Animação";
+          startLoop();
+        } else {
+          btnToggle.textContent = "▶ Reproduzir Jornada";
+          if (timerId) clearInterval(timerId);
+          timerId = null;
+        }
+      });
+    }
+
+    if (btnRestart) {
+      btnRestart.addEventListener('click', () => {
+        currentStage = 0;
+        focusedTokenIdx = 0;
+        updateStageUI();
+      });
+    }
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedModel = btn.getAttribute('data-model') || "all";
+        filterBtns.forEach(b => b.classList.toggle('active', b === btn));
+        renderModelLanes();
+      });
+    });
+
+    stageSteps.forEach((step, idx) => {
+      step.addEventListener('click', () => {
+        currentStage = idx;
+        updateStageUI();
+      });
+    });
+
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        currentStage = 0;
+        focusedTokenIdx = 0;
+        updateStageUI();
+      });
+    }
+
+    window.addEventListener('resize', () => requestAnimationFrame(drawAttentionArcs));
+
+    updateStageUI();
+    startLoop();
+  }
+
+  const archSelectEl = document.getElementById('archTypeSelect');
+  if (archSelectEl) {
+    archSelectEl.addEventListener('change', () => {
+      state.selectedArchitecture = archSelectEl.value || 'decoder_moe';
+      renderFlowchart();
+    });
+  }
+
+  const realSearchInputEl = document.getElementById('agentSearchInput');
+  if (realSearchInputEl) {
+    realSearchInputEl.addEventListener('input', () => {
+      const val = realSearchInputEl.value.trim();
+      if (val) {
+        state.prompt = val;
+        renderFlowchart();
+      }
+    });
+  }
+
+  const blueprintFilterBtns = Array.from(document.querySelectorAll('#archBlueprintFilters .tj-filter-btn'));
+  const blueprintLayerGroups = Array.from(document.querySelectorAll('#projectArchSvg .arch-layer-group'));
+  blueprintFilterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetLayer = btn.getAttribute('data-layer') || 'all';
+      blueprintFilterBtns.forEach(b => b.classList.toggle('active', b === btn));
+      blueprintLayerGroups.forEach(grp => {
+        const layer = grp.getAttribute('data-layer');
+        grp.classList.toggle('is-dimmed', targetLayer !== 'all' && layer !== targetLayer);
+      });
+    });
+  });
+
   init();
   initAgentSearchScenario();
   initJakePeraltaBubbleChat();
+  initTokenComparator();
+  initTransformerJourney();
 });

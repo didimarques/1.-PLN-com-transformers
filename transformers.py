@@ -313,15 +313,63 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
 
-def start_server(port: int = 8000, open_browser: bool = True):
-    """Inicia um servidor web HTTP local para visualizar a interface interativa."""
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+def _is_port_open(host: str, port: int) -> bool:
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.6)
+        return s.connect_ex((host, port)) == 0
+
+
+def _ensure_backend_and_db(base_dir: str):
+    """Sobe automaticamente o Docker PostgreSQL e a API FastAPI (porta 8001) junto com o servidor local."""
+    import subprocess
+    import time
+
+    orch_dir = os.path.join(base_dir, "ai_orchestrator")
+    if not os.path.isdir(orch_dir):
+        return None
+
+    # 1. Sobe o banco PostgreSQL no Docker se a porta 5432 não estiver respondendo
+    if not _is_port_open("127.0.0.1", 5432):
+        print("🐘 Subindo banco de dados PostgreSQL + pgvector no Docker...")
+        subprocess.run(["docker", "compose", "up", "-d"], cwd=orch_dir, check=False)
+        for _ in range(20):
+            if _is_port_open("127.0.0.1", 5432):
+                break
+            time.sleep(0.8)
+
+    # 2. Sobe a API FastAPI (uvicorn na porta 8001) se ainda não estiver ativa
+    venv_python = os.path.join(orch_dir, ".venv", "Scripts", "python.exe")
+    py_exec = venv_python if os.path.exists(venv_python) else sys.executable
+    api_proc = None
+
+    if not _is_port_open("127.0.0.1", 8001):
+        print("⚡ Iniciando API FastAPI + LangChain em http://127.0.0.1:8001 ...")
+        api_proc = subprocess.Popen(
+            [py_exec, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8001"],
+            cwd=orch_dir,
+        )
+        for _ in range(20):
+            if _is_port_open("127.0.0.1", 8001):
+                break
+            time.sleep(0.5)
+
+    return api_proc
+
+
+def start_server(port: int = 8080, open_browser: bool = True):
+    """Inicia banco PostgreSQL, API FastAPI e servidor web HTTP local em um único comando."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(base_dir)
+    api_proc = _ensure_backend_and_db(base_dir)
     server_address = ('', port)
     
     print("=" * 70)
-    print(f"🚀 INICIANDO TRANSFORMER EXPLAINER LOCAL")
-    print(f"📡 Servidor ativo em: http://localhost:{port}")
-    print(f"📖 Pressione CTRL+C no terminal para encerrar o servidor.")
+    print(f"🚀 INICIANDO TRANSFORMER EXPLAINER + AI ORCHESTRATOR")
+    print(f"🌐 Frontend ativo em: http://localhost:{port}")
+    print(f"⚡ API FastAPI ativa em: http://127.0.0.1:8001")
+    print(f"🐘 Banco PostgreSQL ativo em: 127.0.0.1:5432")
+    print(f"📖 Pressione CTRL+C no terminal para encerrar os servidores.")
     print("=" * 70)
 
     if open_browser:
@@ -331,7 +379,10 @@ def start_server(port: int = 8000, open_browser: bool = True):
         httpd = HTTPServer(server_address, NoCacheHandler)
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n[INFO] Servidor local finalizado com sucesso.")
+        print("\n[INFO] Servidores locais finalizados com sucesso.")
+    finally:
+        if api_proc is not None and api_proc.poll() is None:
+            api_proc.terminate()
 
 
 # =============================================================================
@@ -342,7 +393,7 @@ def main():
     parser = argparse.ArgumentParser(description="Transformer Explainer Interativo & Demonstração PyTorch")
     parser.add_argument("--serve", action="store_true", help="Inicia o servidor web local e abre a interface no navegador")
     parser.add_argument("--demo", action="store_true", help="Executa a demonstração passo a passo do forward pass em PyTorch no terminal")
-    parser.add_argument("--port", type=int, default=8000, help="Porta do servidor HTTP (padrão: 8000)")
+    parser.add_argument("--port", type=int, default=8080, help="Porta do servidor HTTP (padrão: 8080)")
     parser.add_argument("--no-browser", action="store_true", help="Não abre automaticamente o navegador ao iniciar o servidor")
 
     args = parser.parse_args()

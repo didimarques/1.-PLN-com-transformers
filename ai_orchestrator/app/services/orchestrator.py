@@ -2,6 +2,7 @@
 
 import json
 import time
+from datetime import datetime
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -18,6 +19,7 @@ from app.tools.files.reader import ler_arquivo
 from app.tools.files.search import buscar_em_arquivos
 from app.tools.integrations.rest_api import consultar_api, consultar_cep, consultar_cliente
 from app.tools.integrations.web_search import web_search
+from app.tools.integrations.web_search import ler_pagina_web, web_search
 from app.tools.processes.reports import (
     calcular_expressao,
     gerar_pdf_relatorio,
@@ -28,6 +30,7 @@ ALL_TOOLS = [
     buscar_em_arquivos,
     ler_arquivo,
     web_search,
+    ler_pagina_web,
     consultar_api,
     consultar_cep,
     consultar_cliente,
@@ -45,6 +48,7 @@ TOOL_CATEGORY_MAP = {
     "buscar_em_arquivos": "files",
     "ler_arquivo": "files",
     "web_search": "web",
+    "ler_pagina_web": "web",
     "consultar_api": "api",
     "consultar_cep": "api",
     "consultar_cliente": "api",
@@ -78,8 +82,9 @@ Regras obrigatórias:
 2. Nunca invente resultados, valores ou URLs.
 3. Use a Memória da conversa para conectar resultados já encontrados anteriormente às próximas chamadas de ferramentas (ex.: gerar um PDF a partir de uma busca anterior).
 4. Ao chamar `gerar_pdf_relatorio`, envie em `conteudo` os dados reais estruturados e limpos (sem markdown ou falas de chat), correspondendo exatamente ao resultado esperado pelo usuário.
-5. Diferencie sempre informações internas de informações externas.
-6. Diretiva de modo atual: {mode_instruction}
+5. Para buscas na web (`web_search`), responda de forma **eficiente, direta e sucinta** (ex.: "O próximo jogo do Flamengo será dia DD/MM às HH:MM contra ..."), utilizando a data atual ({current_date}) e citando as fontes confiáveis encontradas.
+6. Diferencie sempre informações internas de informações externas.
+7. Diretiva de modo atual: {mode_instruction}
 """
 
 JAKE_PERALTA_PROMPT = """Você é o Detetive Jake Peralta, o Maestro investigativo de uma empresa do ramo financeiro de pagamentos digitais (fintech de PIX, cartões, conciliação, antifraude e chargeback).
@@ -92,8 +97,9 @@ Personalidade e Estilo:
 Regras obrigatórias:
 1. NUNCA invente números, valores, status de transações ou links. Sempre consulte suas ferramentas primeiro.
 2. Diferencie claramente pistas internas (arquivos de `storage/`, PostgreSQL, processos Python) de fontes externas (Web Search, APIs públicas).
-3. Se o usuário pedir relatório ou dossiê em PDF, chame `gerar_pdf_relatorio`.
-4. Diretiva de modo atual: {mode_instruction}
+3. Para buscas na web (`web_search`), seja direto e sucinto, usando a data atual ({current_date}) e citando as fontes confiáveis consultadas.
+4. Se o usuário pedir relatório ou dossiê em PDF, chame `gerar_pdf_relatorio`.
+5. Diretiva de modo atual: {mode_instruction}
 """
 
 _memory_store = MemoryStore()
@@ -148,6 +154,7 @@ def stream_langchain_flow(
     ])
     formatted_messages = prompt_template.format_messages(
         mode_instruction=mode_instruction,
+        current_date=datetime.now().strftime("%d/%m/%Y"),
         history=history_msgs,
         input=query,
     )
@@ -181,6 +188,33 @@ def stream_langchain_flow(
 
     messages = list(formatted_messages)
     final_text = ""
+    usage_totals = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "tool_calling_tokens": 0,
+        "llm_calls": 0,
+    }
+
+    def _accumulate_usage(msg, is_tool_decision: bool):
+        um = getattr(msg, "usage_metadata", None) or {}
+        if not um:
+            rm = getattr(msg, "response_metadata", None) or {}
+            tu = rm.get("token_usage") or {}
+            um = {
+                "input_tokens": tu.get("prompt_tokens", 0),
+                "output_tokens": tu.get("completion_tokens", 0),
+                "total_tokens": tu.get("total_tokens", 0),
+            }
+        inp = int(um.get("input_tokens") or 0)
+        outp = int(um.get("output_tokens") or 0)
+        tot = int(um.get("total_tokens") or (inp + outp))
+        usage_totals["input_tokens"] += inp
+        usage_totals["output_tokens"] += outp
+        usage_totals["total_tokens"] += tot
+        usage_totals["llm_calls"] += 1
+        if is_tool_decision:
+            usage_totals["tool_calling_tokens"] += outp
 
     # 5. Agent & Tools Loop
     for iteration in range(8):
@@ -188,6 +222,7 @@ def stream_langchain_flow(
         messages.append(ai_msg)
 
         tool_calls = getattr(ai_msg, "tool_calls", None) or []
+        _accumulate_usage(ai_msg, is_tool_decision=bool(tool_calls))
         if not tool_calls:
             final_text = ai_msg.content if isinstance(ai_msg.content, str) else str(ai_msg.content)
             break
@@ -232,13 +267,16 @@ def stream_langchain_flow(
                 "result": result_obj,
                 "status": status,
                 "duration_ms": elapsed_ms,
+                "payload_tokens_est": max(1, round((len(json.dumps(t_args, ensure_ascii=False)) + len(result_str[:6000])) / 4)),
             }
+            usage_totals["tool_calling_tokens"] += exec_obj["payload_tokens_est"]
             tool_executions.append(exec_obj)
             yield {"event": "tool_result", **exec_obj}
 
             messages.append(ToolMessage(content=result_str[:6000], tool_call_id=t_id))
     else:
         final_msg = llm_with_tools.invoke(messages)
+        _accumulate_usage(final_msg, is_tool_decision=False)
         final_text = final_msg.content if isinstance(final_msg.content, str) else str(final_msg.content)
 
     # Garantia determinística apenas se o usuário pediu PDF e a ferramenta estiver no escopo
@@ -313,6 +351,7 @@ def stream_langchain_flow(
         "model": llm.model_name,
         "session_id": session_id,
         "duration_ms": total_ms,
+        "token_usage": usage_totals,
         "flow_steps": flow_steps,
         "tool_executions": tool_executions,
         "memory_count": len(_memory_store.get_messages(session_id)),

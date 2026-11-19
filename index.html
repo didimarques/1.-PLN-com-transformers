@@ -15,7 +15,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20261121">
+  <link rel="stylesheet" href="styles.css?v=20261130">
 </head>
 <body data-theme="light">
 
@@ -222,6 +222,15 @@
           </p>
         </div>
         <div class="flowchart-nav-controls">
+          <div class="arch-selector-group">
+            <label for="archTypeSelect" class="stepper-label">Arquitetura LLM:</label>
+            <select id="archTypeSelect" class="arch-select-input" title="Escolha a arquitetura de LLM exibida no fluxograma">
+              <option value="decoder_moe" selected>Decoder-Only + MoE (GPT / Kimi / DeepSeek)</option>
+              <option value="encoder_only">Encoder-Only (BERT / RoBERTa — Bidirecional)</option>
+              <option value="encoder_decoder">Encoder-Decoder (T5 / BART — Cross-Attention)</option>
+              <option value="multimodal_moe">Multimodal Sparse MoE (Gemini-4 — Global + Tools)</option>
+            </select>
+          </div>
           <div class="block-stepper">
             <span class="stepper-label">Bloco:</span>
             <button class="stepper-btn" id="prevBlockBtn" title="Bloco anterior">&lt;</button>
@@ -237,6 +246,14 @@
             <button class="btn-pulse-stepper" id="btnAnimate12Heads" title="Animar ciclo completo das 12 Cabeças Multi-Head">⚡ 12 Cabeças</button>
           </div>
         </div>
+      </div>
+
+      <!-- BANNER EXPLICATIVO DA ARQUITETURA SELECIONADA & FASE REAL DA BUSCA -->
+      <div class="arch-explanation-bar" id="archExplanationBar">
+        <div class="arch-exp-text" id="archExplanationText">
+          <strong>Decoder-Only + MoE:</strong> Usa máscara causal triangular (cada token só atende aos anteriores) e roteia tokens para especialistas Top-K (Web, SQL, Arquivos, APIs) antes da geração autoregressiva.
+        </div>
+        <span class="trace-counter-pill" id="archLivePhaseBadge">Aguardando busca do usuário</span>
       </div>
 
       <!-- CANVAS SVG DO FLUXOGRAMA -->
@@ -369,14 +386,547 @@
       </div>
     </section>
 
+    <!-- 3.6. COMPARADOR DE CONSUMO DE TOKENS (LLM & TOOL CALLING) E FATOR DE ESCRITA DO PROMPT -->
+    <section id="comparador-tokens" class="token-comparator-section card">
+      <div class="agent-search-header">
+        <div>
+          <div class="divider-badge">Observabilidade &amp; Engenharia de Prompt</div>
+          <h2>Comparador de Consumo de Tokens: LLM vs. Tool Calling &amp; Qualidade do Prompt</h2>
+          <p class="subtitle">
+            Compare o gasto real de tokens entre os modelos (<strong>GPT-6.1-Sol</strong>, <strong>Gemini-4-Hydrogen</strong> e <strong>Kimi-K3.1-Pro</strong>), veja o custo de cada <strong>Tool Calling</strong> e entenda como a <strong>escrita do prompt</strong> impacta a interpretação semântica.
+          </p>
+        </div>
+        <button type="button" id="btnRunLlmCompare" class="btn btn-primary">⚡ Comparar 3 LLMs (Real)</button>
+      </div>
+
+      <div class="comparator-status-bar" id="comparatorStatusBar">
+        Execute uma busca acima ou clique em <strong>⚡ Comparar 3 LLMs (Real)</strong> para medir o consumo real de tokens.
+      </div>
+
+      <div class="comparator-grid-two">
+        <!-- Coluna 1: Consumo por LLM -->
+        <div class="comparator-card-box">
+          <div class="panel-sub-header">
+            <h3>🤖 Consumo de Tokens por LLM</h3>
+            <span class="trace-counter-pill" id="llmCompareCount">0 modelo(s)</span>
+          </div>
+          <div id="llmCompareBars" class="compare-bars-list">
+            <div class="agent-empty-state">Os dados de Input, Output, Tool Calling e Total de tokens por LLM aparecerão aqui.</div>
+          </div>
+        </div>
+
+        <!-- Coluna 2: Consumo por Tool Calling -->
+        <div class="comparator-card-box">
+          <div class="panel-sub-header">
+            <h3>🛠️ Consumo por Tool Calling</h3>
+            <span class="trace-counter-pill" id="toolCompareCount">0 tool(s)</span>
+          </div>
+          <div id="toolTokenBreakdown" class="compare-bars-list">
+            <div class="agent-empty-state">Aqui você verá quantos tokens cada ferramenta consumiu (decisão + retorno de payload).</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Painel: Fator de Escrita do Prompt -->
+      <div class="prompt-factor-panel">
+        <div class="panel-sub-header">
+          <h3>✍️ Fator de Escrita do Prompt &amp; Interpretação Semântica</h3>
+          <span class="trace-counter-pill" id="promptQualityBadge">Clareza: —</span>
+        </div>
+
+        <div class="prompt-meter-row">
+          <div class="agent-progress-track">
+            <div class="agent-progress-fill" id="promptQualityFill" style="width: 0%;"></div>
+          </div>
+          <span class="prompt-checklist" id="promptChecklistSummary">Analisando prompt atual...</span>
+        </div>
+
+        <div class="prompt-comparison-cards">
+          <div class="prompt-ex-card bad" id="promptCardLeft">
+            <div class="prompt-ex-tag" id="promptCardLeftTag">❌ Prompt Vago (Alto consumo &amp; risco de erro)</div>
+            <p class="prompt-ex-quote" id="promptCardLeftQuote">"Me vê os dados de 2025 aí e faz um arquivo"</p>
+            <p class="prompt-ex-why" id="promptCardLeftWhy">
+              <strong>Impacto Semântico:</strong> O Transformer/MoE não sabe se "dados" refere-se ao banco PostgreSQL, arquivos em <code>storage/</code> ou Web. O LLM dispara múltiplas tool callings exploratórias (~2.500+ tokens extras) e pode gerar formato errado.
+            </p>
+          </div>
+
+          <div class="prompt-ex-card good" id="promptCardRight">
+            <div class="prompt-ex-tag" id="promptCardRightTag">✅ Prompt Estruturado (Preciso &amp; econômico)</div>
+            <p class="prompt-ex-quote" id="promptCardRightQuote">"Consulte o total de compras do restaurante em 2025 no PostgreSQL e gere um relatório em PDF por categoria."</p>
+            <p class="prompt-ex-why" id="promptCardRightWhy">
+              <strong>Impacto Semântico:</strong> Verbo de ação + fonte explícita + filtro temporal (<code>2025</code>) + formato final (<code>PDF</code>) direcionam a Atenção e o <strong>Router MoE</strong> diretamente para <code>consultar_compras_restaurante</code> e <code>gerar_pdf_relatorio</code>, reduzindo tokens e latência.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3.7. ANIMAÇÃO AO VIVO: JORNADA TRANSFORMERS (TOKENS, EMBEDDINGS, ATENÇÃO & MULTIAGENTE) -->
+    <section id="jornada-transformers-modelos" class="transformer-journey-section card">
+      <div class="agent-search-header">
+        <div>
+          <div class="divider-badge">Arquitetura Transformer em Tempo Real</div>
+          <h2>Jornada de Tokens &amp; Embeddings nos 3 Modelos (PLN Multiagêntico)</h2>
+          <p class="subtitle">
+            Veja em tempo real como o prompt digitado acima atravessa os componentes internos dos Transformers (<strong>Tokenização BPE</strong>, <strong>Embeddings + Positional Encoding</strong>, <strong>Self-Attention</strong> e <strong>MoE Router</strong>) em cada um dos 3 modelos até acionar a jornada multiagêntica.
+          </p>
+        </div>
+        <div class="tj-controls">
+          <button type="button" id="btnTjTogglePlay" class="btn btn-secondary">⏸ Pausar Animação</button>
+          <button type="button" id="btnTjRestart" class="btn btn-secondary">↺ Reiniciar Ciclo</button>
+        </div>
+      </div>
+
+      <div class="tj-prompt-mirror-bar">
+        <span class="tj-mirror-label">Prompt em processamento:</span>
+        <code id="tjPromptPreview" class="tj-mirror-code">—</code>
+        <div class="tj-model-filter" id="tjModelFilter">
+          <button type="button" class="tj-filter-btn active" data-model="all">Todos (3 Modelos)</button>
+          <button type="button" class="tj-filter-btn" data-model="openai/gpt-6.1-sol">GPT-6.1-Sol</button>
+          <button type="button" class="tj-filter-btn" data-model="google/gemini-4-hydrogen">Gemini-4-Hydrogen</button>
+          <button type="button" class="tj-filter-btn" data-model="moonshotai/kimi-k3.1-pro">Kimi-K3.1-Pro</button>
+        </div>
+      </div>
+
+      <!-- Barra de Estágios do Transformer -->
+      <div class="tj-stage-track" id="tjStageTrack">
+        <div class="tj-stage-step active" data-stage="0">
+          <span class="tj-step-num">1</span>
+          <span class="tj-step-name">Tokenização (BPE)</span>
+        </div>
+        <div class="tj-stage-step" data-stage="1">
+          <span class="tj-step-num">2</span>
+          <span class="tj-step-name">Embeddings + PE</span>
+        </div>
+        <div class="tj-stage-step" data-stage="2">
+          <span class="tj-step-num">3</span>
+          <span class="tj-step-name">Self-Attention (Q·Kᵀ)</span>
+        </div>
+        <div class="tj-stage-step" data-stage="3">
+          <span class="tj-step-num">4</span>
+          <span class="tj-step-name">FFN / MoE Router</span>
+        </div>
+        <div class="tj-stage-step" data-stage="4">
+          <span class="tj-step-num">5</span>
+          <span class="tj-step-name">Jornada Multiagêntica</span>
+        </div>
+      </div>
+
+      <!-- Visualização Interativa: Tokens + Embeddings + Arcos de Atenção -->
+      <div class="tj-canvas-box">
+        <div class="tj-canvas-header">
+          <span class="tj-canvas-title">🔬 Fluxo Semântico: Tokens → Vetores de Embedding → Mapa de Atenção</span>
+          <span class="trace-counter-pill" id="tjTokenSummaryBadge">0 tokens</span>
+        </div>
+
+        <div class="tj-attention-stage" id="tjAttentionStage">
+          <svg id="tjAttentionSvg" class="tj-attention-svg" aria-hidden="true"></svg>
+          <div id="tjTokenRow" class="tj-token-row"></div>
+        </div>
+
+        <div class="tj-semantic-insight" id="tjSemanticInsight">
+          Digite um prompt acima para observar como os cabeçalhos de atenção conectam verbos, fontes de dados e parâmetros temporais.
+        </div>
+      </div>
+
+      <!-- 3 Trilhas Paralelas dos Modelos Transformer -->
+      <div class="tj-models-grid" id="tjModelLanes"></div>
+    </section>
+
     <!-- 4. VISÃO DETALHADA POR ESTÁGIOS ISOLADOS (COMO NA VERSÃO 1) -->
     <section class="isolated-stages-container" id="estagios-isolados">
       <div class="section-divider-header">
         <span class="divider-badge">Análise Isolada Passo a Passo</span>
-        <h2>Como o Raciocínio é Construído em Cada Módulo</h2>
+        <h2>Como o Raciocínio é Construído em Cada Módulo e Modelo</h2>
         <p class="subtitle">
-          Explore cada subsistema individualmente: da conversão de caracteres em IDs até a projeção final nos logits do vocabulário.
+          Veja separadamente como cada modelo LLM processa a informação passo a passo e explore cada subsistema Transformer individualmente.
         </p>
+      </div>
+
+      <!-- DETALHAMENTO DIDÁTICO SEPARADO POR MODELO -->
+      <div class="models-deep-dive-grid" id="raciocinio-por-modelo">
+        <!-- Modelo 1: GPT-6.1-Sol -->
+        <article class="model-deep-card card model-gpt">
+          <div class="model-deep-header">
+            <div>
+              <span class="model-deep-badge badge-gpt">openai/gpt-6.1-sol</span>
+              <h3>GPT-6.1-Sol — Roteamento Direto &amp; Alta Eficiência</h3>
+            </div>
+            <span class="trace-counter-pill">Decoder-Only + GQA</span>
+          </div>
+          <p class="model-deep-lead">
+            Projetado para <strong>convergência rápida e baixo consumo de tokens</strong>. Prioriza identificar imediatamente a intenção principal e disparar a ferramenta exata sem rodeios.
+          </p>
+          <ol class="model-deep-steps">
+            <li>
+              <strong>1. Tokenização &amp; Embeddings:</strong> Segmenta o prompt via BPE compacto (~100k tokens) e aplica <em>Rotary Positional Embedding (RoPE)</em> para preservar a ordem exata entre verbo de ação e entidade alvo.
+            </li>
+            <li>
+              <strong>2. Self-Attention Causal (GQA):</strong> Usa <em>Grouped-Query Attention</em>, concentrando os pesos de atenção nas palavras-chave de comando (ex.: <code>consulte</code>, <code>2025</code>, <code>flamengo</code>) e descartando ruído conversacional.
+            </li>
+            <li>
+              <strong>3. Decisão de Tool Calling:</strong> Na primeira passada do Decoder, projeta diretamente o JSON estruturado da ferramenta mais provável (ex.: apenas <code>consultar_compras_restaurante</code>), evitando chamadas exploratórias redundantes.
+            </li>
+            <li>
+              <strong>4. Síntese Final:</strong> Recebe o payload da ferramenta no contexto, aplica máscara causal sobre a resposta e gera um texto direto ao ponto (tipicamente <strong>2 chamadas LLM</strong> no total).
+            </li>
+          </ol>
+          <div class="model-arch-diagram">
+            <div class="model-arch-title">Arquitetura Modular — GPT-6.1-Sol</div>
+            <svg viewBox="0 0 320 340" class="model-modular-svg" role="img" aria-label="Arquitetura modular do GPT-6.1-Sol">
+              <defs>
+                <marker id="arrGpt" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                  <path d="M0,6 L3,0 L6,6 Z" fill="#0f172a" />
+                </marker>
+              </defs>
+              <!-- Output -->
+              <rect x="85" y="8" width="150" height="26" rx="6" fill="var(--bg-card)" stroke="#10b981" stroke-width="1.5" />
+              <text x="160" y="25" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--text-main)">Output (Tool / Resposta)</text>
+              <line x1="160" y1="48" x2="160" y2="36" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+
+              <!-- Head Block -->
+              <rect x="65" y="48" width="190" height="58" rx="8" fill="rgba(148,163,184,0.16)" stroke="var(--border-color)" stroke-width="1.2" />
+              <rect x="78" y="54" width="164" height="21" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="68" text-anchor="middle" font-size="9.5" font-weight="600" fill="var(--text-main)">Linear output layer (Logits)</text>
+              <rect x="78" y="79" width="164" height="21" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="93" text-anchor="middle" font-size="9.5" font-weight="600" fill="var(--text-main)">Final RMSNorm</text>
+              <line x1="160" y1="122" x2="160" y2="108" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+
+              <!-- Stack of Decoder Blocks -->
+              <rect x="42" y="122" width="236" height="128" rx="10" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1.6" />
+              <text x="160" y="138" text-anchor="middle" font-size="10" font-weight="800" fill="#059669">Stack of Decoder Blocks (N×)</text>
+              <rect x="58" y="146" width="204" height="22" rx="5" fill="var(--bg-card)" stroke="#10b981" />
+              <text x="160" y="160" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--text-main)">SwiGLU FFN + Tool Head</text>
+              <rect x="58" y="173" width="204" height="20" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="186" text-anchor="middle" font-size="9" font-weight="600" fill="var(--text-secondary)">RMSNorm + Residual</text>
+              <rect x="58" y="198" width="204" height="22" rx="5" fill="var(--bg-card)" stroke="#10b981" />
+              <text x="160" y="212" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--text-main)">Grouped-Query Attention (GQA)</text>
+              <rect x="58" y="224" width="204" height="20" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="237" text-anchor="middle" font-size="9" font-weight="600" fill="var(--text-secondary)">RMSNorm + Causal Mask</text>
+
+              <!-- Embedding & Input -->
+              <line x1="160" y1="266" x2="160" y2="252" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+              <rect x="65" y="266" width="190" height="24" rx="6" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="282" text-anchor="middle" font-size="9.5" font-weight="600" fill="var(--text-main)">Token Embedding + RoPE</text>
+              <line x1="160" y1="304" x2="160" y2="292" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+              <rect x="75" y="304" width="170" height="26" rx="6" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="321" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--text-main)">Tokenized text (BPE)</text>
+            </svg>
+          </div>
+          <div class="model-deep-footer">
+            <span>⚡ <strong>Perfil:</strong> Menor latência &amp; menor custo de tokens</span>
+            <span>🎯 <strong>Ideal para:</strong> Consultas objetivas SQL/Web</span>
+          </div>
+        </article>
+
+        <!-- Modelo 2: Gemini-4-Hydrogen -->
+        <article class="model-deep-card card model-gemini">
+          <div class="model-deep-header">
+            <div>
+              <span class="model-deep-badge badge-gemini">google/gemini-4-hydrogen</span>
+              <h3>Gemini-4-Hydrogen — Contexto Amplo &amp; Verificação Cruzada</h3>
+            </div>
+            <span class="trace-counter-pill">Multimodal Sparse MoE</span>
+          </div>
+          <p class="model-deep-lead">
+            Projetado para <strong>compreensão contextual ampla e validação cruzada</strong>. Conecta múltiplas fontes antes de consolidar a resposta final ao usuário.
+          </p>
+          <ol class="model-deep-steps">
+            <li>
+              <strong>1. Tokenização &amp; Espaço Unificado:</strong> Converte texto, esquemas de tabelas, snippets web e documentos em um espaço vetorial compartilhado com janela de contexto extensa.
+            </li>
+            <li>
+              <strong>2. Atenção Global Esparsa:</strong> Seus cabeçalhos de atenção relacionam tokens distantes entre si (ex.: liga o assunto da pergunta a múltiplos resultados de busca e metadados de data/hora simultaneamente).
+            </li>
+            <li>
+              <strong>3. Roteamento MoE &amp; Tool Calling:</strong> O Router MoE ativa especialistas paralelos e frequentemente realiza uma <strong>segunda verificação</strong> (ex.: consulta compras + vendas, ou busca web + leitura da página completa via <code>ler_pagina_web</code>).
+            </li>
+            <li>
+              <strong>4. Síntese Fundamentada:</strong> Cruza os retornos das ferramentas para eliminar contradições e produz uma resposta contextualizada e explicativa (tipicamente <strong>2 a 3 chamadas LLM</strong>).
+            </li>
+          </ol>
+          <div class="model-arch-diagram">
+            <div class="model-arch-title">Arquitetura Modular — Gemini-4-Hydrogen</div>
+            <svg viewBox="0 0 320 340" class="model-modular-svg" role="img" aria-label="Arquitetura modular do Gemini-4-Hydrogen">
+              <!-- Output -->
+              <rect x="80" y="8" width="160" height="26" rx="6" fill="var(--bg-card)" stroke="#3b82f6" stroke-width="1.5" />
+              <text x="160" y="25" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--text-main)">Output (Síntese Verificada)</text>
+              <line x1="160" y1="48" x2="160" y2="36" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+
+              <!-- Head Block -->
+              <rect x="65" y="48" width="190" height="58" rx="8" fill="rgba(148,163,184,0.16)" stroke="var(--border-color)" stroke-width="1.2" />
+              <rect x="78" y="54" width="164" height="21" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="68" text-anchor="middle" font-size="9.5" font-weight="600" fill="var(--text-main)">Linear + Cross-Check Head</text>
+              <rect x="78" y="79" width="164" height="21" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="93" text-anchor="middle" font-size="9.5" font-weight="600" fill="var(--text-main)">Final RMSNorm</text>
+              <line x1="160" y1="122" x2="160" y2="108" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+
+              <!-- Stack of Sparse MoE Blocks -->
+              <rect x="38" y="122" width="244" height="128" rx="10" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.6" />
+              <text x="160" y="138" text-anchor="middle" font-size="10" font-weight="800" fill="#2563eb">Sparse MoE Blocks (N×)</text>
+              <rect x="52" y="146" width="102" height="24" rx="5" fill="var(--bg-card)" stroke="#3b82f6" />
+              <text x="103" y="161" text-anchor="middle" font-size="8.8" font-weight="700" fill="var(--text-main)">Experts E1..Ek</text>
+              <rect x="162" y="146" width="106" height="24" rx="5" fill="var(--bg-card)" stroke="#f59e0b" />
+              <text x="215" y="161" text-anchor="middle" font-size="8.8" font-weight="700" fill="var(--text-main)">Shared Expert</text>
+              <rect x="52" y="175" width="216" height="20" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="188" text-anchor="middle" font-size="9" font-weight="700" fill="#2563eb">MoE Router Top-K + Tool Dispatch</text>
+              <rect x="52" y="200" width="216" height="22" rx="5" fill="var(--bg-card)" stroke="#3b82f6" />
+              <text x="160" y="214" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--text-main)">Global Sparse Attention</text>
+              <rect x="52" y="225" width="216" height="19" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="238" text-anchor="middle" font-size="9" font-weight="600" fill="var(--text-secondary)">RMSNorm + Long Context</text>
+
+              <!-- Embedding & Input -->
+              <line x1="160" y1="266" x2="160" y2="252" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+              <rect x="55" y="266" width="210" height="24" rx="6" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="282" text-anchor="middle" font-size="9.5" font-weight="600" fill="var(--text-main)">Unified Multimodal Embedding</text>
+              <line x1="160" y1="304" x2="160" y2="292" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+              <rect x="65" y="304" width="190" height="26" rx="6" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="321" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--text-main)">Texto + Tabelas + Web Input</text>
+            </svg>
+          </div>
+          <div class="model-deep-footer">
+            <span>🔎 <strong>Perfil:</strong> Equilíbrio entre profundidade e precisão</span>
+            <span>🌐 <strong>Ideal para:</strong> Buscas web multi-fonte &amp; documentos</span>
+          </div>
+        </article>
+
+        <!-- Modelo 3: Kimi-K3.1-Pro -->
+        <article class="model-deep-card card model-kimi">
+          <div class="model-deep-header">
+            <div>
+              <span class="model-deep-badge badge-kimi">moonshotai/kimi-k3.1-pro</span>
+              <h3>Kimi-K3.1-Pro — Raciocínio Profundo em Cadeia Longa</h3>
+            </div>
+            <span class="trace-counter-pill">Long-Context MoE</span>
+          </div>
+          <p class="model-deep-lead">
+            Projetado para <strong>raciocínio analítico passo a passo e checagem rigorosa</strong>. Explora hipóteses antes de fechar a conclusão, consumindo mais tokens de saída e raciocínio.
+          </p>
+          <ol class="model-deep-steps">
+            <li>
+              <strong>1. Tokenização Multilíngue &amp; Posição Estendida:</strong> Preserva nuances semânticas finas em português e termos técnicos/numéricos ao longo de sequências extensas.
+            </li>
+            <li>
+              <strong>2. Self-Attention de Longo Alcance:</strong> Mantém atenção distribuída sobre todo o histórico de mensagens e retornos completos de ferramentas, comparando cada trecho lido com a restrição da pergunta.
+            </li>
+            <li>
+              <strong>3. Cadeia de Decisão MoE:</strong> Ativa especialistas especializados em decomposição lógica; tende a validar tabelas relacionadas ou ler múltiplas páginas web antes de sintetizar.
+            </li>
+            <li>
+              <strong>4. Síntese Analítica:</strong> Estrutura a resposta com maior detalhamento e justificativa explícita dos dados coletados (maior volume de tokens de entrada/saída, tipicamente <strong>3+ chamadas LLM</strong>).
+            </li>
+          </ol>
+          <div class="model-arch-diagram">
+            <div class="model-arch-title">Arquitetura Modular — Kimi-K3.1-Pro</div>
+            <svg viewBox="0 0 320 340" class="model-modular-svg" role="img" aria-label="Arquitetura modular do Kimi-K3.1-Pro">
+              <!-- Output -->
+              <rect x="80" y="8" width="160" height="26" rx="6" fill="var(--bg-card)" stroke="#8b5cf6" stroke-width="1.5" />
+              <text x="160" y="25" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--text-main)">Output (Análise Profunda)</text>
+              <line x1="160" y1="48" x2="160" y2="36" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+
+              <!-- Head Block -->
+              <rect x="65" y="48" width="190" height="58" rx="8" fill="rgba(148,163,184,0.16)" stroke="var(--border-color)" stroke-width="1.2" />
+              <rect x="78" y="54" width="164" height="21" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="68" text-anchor="middle" font-size="9.5" font-weight="600" fill="var(--text-main)">Linear output (CoT + Tools)</text>
+              <rect x="78" y="79" width="164" height="21" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="93" text-anchor="middle" font-size="9.5" font-weight="600" fill="var(--text-main)">Final RMSNorm</text>
+              <line x1="160" y1="122" x2="160" y2="108" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+
+              <!-- Reasoning Loop Stack -->
+              <rect x="30" y="122" width="224" height="128" rx="10" fill="rgba(139,92,246,0.12)" stroke="#8b5cf6" stroke-width="1.6" />
+              <text x="142" y="138" text-anchor="middle" font-size="10" font-weight="800" fill="#7c3aed">Long-Context MoE Stack</text>
+              <rect x="44" y="146" width="196" height="22" rx="5" fill="var(--bg-card)" stroke="#8b5cf6" />
+              <text x="142" y="160" text-anchor="middle" font-size="9.2" font-weight="700" fill="var(--text-main)">Deep Reasoning Experts</text>
+              <rect x="44" y="173" width="196" height="20" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="142" y="186" text-anchor="middle" font-size="9" font-weight="600" fill="var(--text-secondary)">MoE Router + RMSNorm</text>
+              <rect x="44" y="198" width="196" height="22" rx="5" fill="var(--bg-card)" stroke="#8b5cf6" />
+              <text x="142" y="212" text-anchor="middle" font-size="9.2" font-weight="700" fill="var(--text-main)">Long-Range Attention (MLA)</text>
+              <rect x="44" y="224" width="196" height="20" rx="5" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="142" y="237" text-anchor="middle" font-size="9" font-weight="600" fill="var(--text-secondary)">RMSNorm + KV-Cache</text>
+
+              <!-- Dashed Reasoning Loop Arrow (inspired by Raschka diagram) -->
+              <path d="M 254 220 L 284 220 L 284 156 L 254 156" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-dasharray="4 3" />
+              <text x="290" y="185" font-size="8.5" font-weight="700" fill="#d97706">Multi</text>
+              <text x="290" y="197" font-size="8.5" font-weight="700" fill="#d97706">Pass</text>
+
+              <!-- Embedding & Input -->
+              <line x1="160" y1="266" x2="160" y2="252" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+              <rect x="55" y="266" width="210" height="24" rx="6" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="282" text-anchor="middle" font-size="9.5" font-weight="600" fill="var(--text-main)">Token Embedding + Ext. RoPE</text>
+              <line x1="160" y1="304" x2="160" y2="292" stroke="var(--text-main)" stroke-width="1.4" marker-end="url(#arrGpt)" />
+              <rect x="65" y="304" width="190" height="26" rx="6" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="160" y="321" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--text-main)">Tokenized text (Long Ctx)</text>
+            </svg>
+          </div>
+          <div class="model-deep-footer">
+            <span>🧠 <strong>Perfil:</strong> Raciocínio extenso &amp; alta cobertura</span>
+            <span>📊 <strong>Ideal para:</strong> Análises complexas &amp; auditoria de dados</span>
+          </div>
+        </article>
+      </div>
+
+      <!-- DESENHO DA ARQUITETURA DO PROJETO (COMO PROJETOS DE IA SÃO CONSTRUÍDOS) -->
+      <div class="project-arch-card card" id="desenho-arquitetura-projeto">
+        <div class="stage-isolated-header">
+          <div class="stage-tag-group">
+            <span class="stage-tag-badge">Arquitetura End-to-End</span>
+            <h3>Desenho da Arquitetura do Projeto (Como Sistemas Multiagentes são Feitos)</h3>
+          </div>
+          <div class="arch-blueprint-filters" id="archBlueprintFilters">
+            <button type="button" class="tj-filter-btn active" data-layer="all">Visão Completa</button>
+            <button type="button" class="tj-filter-btn" data-layer="frontend">1. Frontend &amp; SSE</button>
+            <button type="button" class="tj-filter-btn" data-layer="orchestrator">2. API &amp; Orquestrador</button>
+            <button type="button" class="tj-filter-btn" data-layer="llm">3. LLMs (Transformers)</button>
+            <button type="button" class="tj-filter-btn" data-layer="tools">4. Tools &amp; Banco Docker</button>
+          </div>
+        </div>
+        <p class="stage-isolated-desc">
+          Diagrama completo de engenharia mostrando como a interface web, o backend FastAPI/LangChain, os modelos Transformer e as fontes reais (PostgreSQL em Docker, Buscador Web, Storage e APIs) se comunicam em produção:
+        </p>
+
+        <div class="arch-blueprint-scroll">
+          <svg id="projectArchSvg" class="arch-blueprint-svg" viewBox="0 0 1200 470" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Desenho completo da arquitetura do projeto multiagente com Transformers">
+            <defs>
+              <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6" />
+              </marker>
+              <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#10b981" />
+              </marker>
+              <marker id="arrowPurple" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#8b5cf6" />
+              </marker>
+            </defs>
+
+            <!-- Coluna 1: FRONTEND -->
+            <g class="arch-layer-group" data-layer="frontend">
+              <rect x="20" y="30" width="215" height="390" rx="12" fill="rgba(59, 130, 246, 0.07)" stroke="#3b82f6" stroke-width="1.6" />
+              <text x="127" y="56" text-anchor="middle" font-size="13" font-weight="800" fill="#2563eb">1. FRONTEND WEB</text>
+              <text x="127" y="73" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">index.html + script.js</text>
+
+              <rect x="36" y="92" width="183" height="68" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="127" y="114" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">Entrada &amp; Prompt</text>
+              <text x="127" y="131" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Busca + Análise Semântica</text>
+              <text x="127" y="146" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">(#agentSearchInput)</text>
+
+              <rect x="36" y="176" width="183" height="72" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="127" y="198" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">Visualizador Transformer</text>
+              <text x="127" y="215" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Sankey Q·K·V + Seletor</text>
+              <text x="127" y="231" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Tokens, Embeddings &amp; MoE</text>
+
+              <rect x="36" y="264" width="183" height="72" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="127" y="286" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">Observabilidade</text>
+              <text x="127" y="303" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Comparador de Tokens</text>
+              <text x="127" y="319" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Input / Tool Calling / Output</text>
+
+              <rect x="36" y="350" width="183" height="52" rx="8" fill="rgba(16, 185, 129, 0.12)" stroke="#10b981" />
+              <text x="127" y="373" text-anchor="middle" font-size="11" font-weight="700" fill="#059669">Stream SSE em Tempo Real</text>
+              <text x="127" y="389" text-anchor="middle" font-size="9.5" fill="var(--text-secondary)">Renderiza etapas e resposta</text>
+            </g>
+
+            <!-- Coluna 2: BACKEND GATEWAY & ORQUESTRADOR -->
+            <g class="arch-layer-group" data-layer="orchestrator">
+              <rect x="285" y="30" width="235" height="390" rx="12" fill="rgba(139, 92, 246, 0.07)" stroke="#8b5cf6" stroke-width="1.6" />
+              <text x="402" y="56" text-anchor="middle" font-size="13" font-weight="800" fill="#7c3aed">2. BACKEND &amp; ORQUESTRADOR</text>
+              <text x="402" y="73" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">FastAPI (:8001) + LangChain</text>
+
+              <rect x="303" y="92" width="199" height="76" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="402" y="114" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">API Gateway (app/main.py)</text>
+              <text x="402" y="131" text-anchor="middle" font-size="10" fill="var(--text-secondary)">/api/orchestrate/stream</text>
+              <text x="402" y="147" text-anchor="middle" font-size="10" fill="var(--text-secondary)">/api/compare-models</text>
+
+              <rect x="303" y="186" width="199" height="106" rx="8" fill="var(--bg-card)" stroke="#8b5cf6" stroke-width="1.3" />
+              <text x="402" y="208" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">Agent Loop (orchestrator.py)</text>
+              <text x="402" y="226" text-anchor="middle" font-size="10" fill="var(--text-secondary)">1. Monta System Prompt + Tools</text>
+              <text x="402" y="242" text-anchor="middle" font-size="10" fill="var(--text-secondary)">2. Executa Tool Calling em loop</text>
+              <text x="402" y="258" text-anchor="middle" font-size="10" fill="var(--text-secondary)">3. Contabiliza tokens reais</text>
+              <text x="402" y="274" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Emite eventos SSE ao front</text>
+
+              <rect x="303" y="310" width="199" height="92" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="402" y="332" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">Lifecycle &amp; Infra (Lifespan)</text>
+              <text x="402" y="349" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Sobe Docker PostgreSQL junto</text>
+              <text x="402" y="365" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Seed automático + .env keys</text>
+              <text x="402" y="381" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">(transformers.py + main.py)</text>
+            </g>
+
+            <!-- Coluna 3: MOTOR LLM (TRANSFORMERS) -->
+            <g class="arch-layer-group" data-layer="llm">
+              <rect x="570" y="30" width="250" height="390" rx="12" fill="rgba(245, 158, 11, 0.08)" stroke="#f59e0b" stroke-width="1.6" />
+              <text x="695" y="56" text-anchor="middle" font-size="13" font-weight="800" fill="#d97706">3. MOTOR LLM (OPENROUTER)</text>
+              <text x="695" y="73" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">Arquiteturas Transformer</text>
+
+              <rect x="588" y="92" width="214" height="82" rx="8" fill="var(--bg-card)" stroke="#10b981" stroke-width="1.3" />
+              <text x="695" y="114" text-anchor="middle" font-size="11.5" font-weight="800" fill="#059669">openai/gpt-6.1-sol</text>
+              <text x="695" y="131" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Decoder-Only + GQA</text>
+              <text x="695" y="148" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Roteamento direto (~2 chamadas)</text>
+
+              <rect x="588" y="190" width="214" height="82" rx="8" fill="var(--bg-card)" stroke="#3b82f6" stroke-width="1.3" />
+              <text x="695" y="212" text-anchor="middle" font-size="11.5" font-weight="800" fill="#2563eb">google/gemini-4-hydrogen</text>
+              <text x="695" y="229" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Multimodal Sparse MoE</text>
+              <text x="695" y="246" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Verificação cruzada (~2-3 chamadas)</text>
+
+              <rect x="588" y="288" width="214" height="82" rx="8" fill="var(--bg-card)" stroke="#8b5cf6" stroke-width="1.3" />
+              <text x="695" y="310" text-anchor="middle" font-size="11.5" font-weight="800" fill="#7c3aed">moonshotai/kimi-k3.1-pro</text>
+              <text x="695" y="327" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Long-Context MoE</text>
+              <text x="695" y="344" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Cadeia analítica (~3+ chamadas)</text>
+
+              <text x="695" y="400" text-anchor="middle" font-size="10" font-weight="700" fill="#b45309">Decide: Chamar Tool ou Responder?</text>
+            </g>
+
+            <!-- Coluna 4: FERRAMENTAS & DADOS REAIS -->
+            <g class="arch-layer-group" data-layer="tools">
+              <rect x="870" y="30" width="310" height="390" rx="12" fill="rgba(16, 185, 129, 0.07)" stroke="#10b981" stroke-width="1.6" />
+              <text x="1025" y="56" text-anchor="middle" font-size="13" font-weight="800" fill="#059669">4. FERRAMENTAS &amp; FONTES REAIS</text>
+              <text x="1025" y="73" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">Execução Determinística + Dados</text>
+
+              <rect x="888" y="92" width="274" height="72" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="1025" y="114" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">🐘 PostgreSQL + pgvector (Docker :5432)</text>
+              <text x="1025" y="131" text-anchor="middle" font-size="10" fill="var(--text-secondary)">consultar_compras_restaurante, consultar_vendas</text>
+              <text x="1025" y="147" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Dados estruturados em SQL real</text>
+
+              <rect x="888" y="176" width="274" height="76" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="1025" y="198" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">🌐 Web Search + Leitor de Páginas</text>
+              <text x="1025" y="215" text-anchor="middle" font-size="10" fill="var(--text-secondary)">DuckDuckGo Lite, Bing RSS, Google News, Wiki</text>
+              <text x="1025" y="231" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">JSON-LD + Passagens + Jina Reader</text>
+
+              <rect x="888" y="264" width="274" height="68" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="1025" y="286" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">📁 Storage Local &amp; Relatórios PDF</text>
+              <text x="1025" y="303" text-anchor="middle" font-size="10" fill="var(--text-secondary)">ler_arquivo_storage, gerar_pdf_relatorio</text>
+              <text x="1025" y="319" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Leitura de PDFs, TXT e JSON em storage/</text>
+
+              <rect x="888" y="344" width="274" height="58" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" />
+              <text x="1025" y="366" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-main)">🔌 APIs Externas &amp; Utilitários</text>
+              <text x="1025" y="383" text-anchor="middle" font-size="10" fill="var(--text-secondary)">consultar_cep (ViaCEP), validar_cpf, etc.</text>
+            </g>
+
+            <!-- SETAS DE FLUXO ENTRE CAMADAS -->
+            <!-- Front -> Backend -->
+            <path d="M 235 126 L 285 126" stroke="#3b82f6" stroke-width="2.4" marker-end="url(#arrowBlue)" class="svg-flow-pulse" />
+            <text x="260" y="117" text-anchor="middle" font-size="9" font-weight="700" fill="#2563eb">POST</text>
+
+            <!-- Backend -> Front (SSE) -->
+            <path d="M 285 376 L 235 376" stroke="#10b981" stroke-width="2.4" marker-end="url(#arrowGreen)" class="svg-flow-pulse" />
+            <text x="260" y="367" text-anchor="middle" font-size="9" font-weight="700" fill="#059669">SSE</text>
+
+            <!-- Backend <-> LLM -->
+            <path d="M 520 215 L 570 215" stroke="#8b5cf6" stroke-width="2.4" marker-end="url(#arrowPurple)" class="svg-flow-pulse" />
+            <text x="545" y="205" text-anchor="middle" font-size="9" font-weight="700" fill="#7c3aed">Prompt</text>
+            <path d="M 570 250 L 520 250" stroke="#8b5cf6" stroke-width="2.4" marker-end="url(#arrowPurple)" />
+            <text x="545" y="266" text-anchor="middle" font-size="9" font-weight="700" fill="#7c3aed">Tool/Resp</text>
+
+            <!-- Backend/Orquestrador -> Tools -->
+            <path d="M 820 215 L 870 215" stroke="#10b981" stroke-width="2.4" marker-end="url(#arrowGreen)" class="svg-flow-pulse" />
+            <text x="845" y="205" text-anchor="middle" font-size="9" font-weight="700" fill="#059669">Exec</text>
+            <path d="M 870 250 L 820 250" stroke="#10b981" stroke-width="2.4" marker-end="url(#arrowGreen)" />
+            <text x="845" y="266" text-anchor="middle" font-size="9" font-weight="700" fill="#059669">Dados</text>
+
+            <!-- Legenda inferior -->
+            <rect x="20" y="434" width="1160" height="28" rx="6" fill="var(--bg-secondary)" stroke="var(--border-color)" />
+            <text x="600" y="452" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--text-secondary)">
+              Ciclo ReAct Multiagente: Pergunta → FastAPI → LLM (Token/Atenção/MoE) → Tool Calling → PostgreSQL/Web/Storage → Retorno ao Contexto → Síntese Final via SSE
+            </text>
+          </svg>
+        </div>
       </div>
 
       <!-- ESTÁGIO 1 ISOLADO: TOKENIZAÇÃO -->
@@ -889,6 +1439,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=20261123"></script>
+  <script src="script.js?v=20261129"></script>
 </body>
 </html>

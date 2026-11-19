@@ -1,6 +1,10 @@
 """FastAPI entry point, health checks, and LangChain real search orchestration API."""
 
 import json
+import subprocess
+import time
+from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
@@ -9,13 +13,49 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database.connection import get_db
+from app.database.connection import engine, get_db
+from app.database.init_db import initialize_database
 from app.services.orchestrator import run_langchain_flow, stream_langchain_flow
 from app.tools.files.search import STORAGE_ROOT
+
+
+def _ensure_postgres_running() -> None:
+    """Ensure Docker PostgreSQL is up and initialized when FastAPI boots."""
+    project_root = Path(__file__).resolve().parents[1]
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception:
+        print("[STARTUP] PostgreSQL não respondeu. Subindo container Docker automaticamente...")
+        subprocess.run(
+            ["docker", "compose", "up", "-d"],
+            cwd=str(project_root),
+            check=False,
+        )
+        for _ in range(20):
+            try:
+                with engine.connect() as conn:
+                    conn.execute(text("SELECT 1"))
+                break
+            except Exception:
+                time.sleep(1.0)
+
+    try:
+        initialize_database()
+    except Exception as exc:
+        print(f"[AVISO] Não foi possível inicializar o PostgreSQL automaticamente: {exc}")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    _ensure_postgres_running()
+    yield
+
 
 app = FastAPI(
     title=settings.app_name,
     version="0.2.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -33,6 +73,16 @@ class OrchestrateRequest(BaseModel):
     session_id: str = "web-session"
     model_name: str | None = None
     persona: str = "default"
+
+
+class CompareModelsRequest(BaseModel):
+    query: str
+    mode: str = "auto"
+    models: list[str] = [
+        "openai/gpt-6.1-sol",
+        "google/gemini-4-hydrogen",
+        "moonshotai/kimi-k3.1-pro",
+    ]
 
 
 @app.get("/health")
@@ -142,3 +192,46 @@ def orchestrate_stream(payload: OrchestrateRequest):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.post("/api/compare-models")
+def compare_models(payload: CompareModelsRequest):
+    if not payload.query.strip():
+        raise HTTPException(status_code=400, detail="A consulta não pode estar vazia.")
+
+    results = []
+    for idx, m_name in enumerate(payload.models):
+        try:
+            res = run_langchain_flow(
+                query=payload.query,
+                mode=payload.mode,
+                session_id=f"compare-{idx}-{int(time.time())}",
+                model_name=m_name,
+            )
+            results.append({
+                "model": res.get("model", m_name),
+                "status": "ok",
+                "duration_ms": res.get("duration_ms", 0),
+                "token_usage": res.get("token_usage", {}),
+                "tool_executions": [
+                    {
+                        "tool": te["tool"],
+                        "category": te["category"],
+                        "duration_ms": te["duration_ms"],
+                        "payload_tokens_est": te.get("payload_tokens_est", 0),
+                    }
+                    for te in res.get("tool_executions", [])
+                ],
+                "final_answer_preview": (res.get("final_answer") or "")[:240],
+            })
+        except Exception as exc:
+            results.append({
+                "model": m_name,
+                "status": "error",
+                "error": str(exc),
+                "duration_ms": 0,
+                "token_usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "tool_calling_tokens": 0},
+                "tool_executions": [],
+            })
+
+    return {"query": payload.query, "mode": payload.mode, "comparisons": results}
