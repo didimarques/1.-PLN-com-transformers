@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<head>
+  <html lang="pt-BR">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LangChain &amp; Transformers — Apresentação (28 Slides)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --slide-bg: #ffffff;
+      --slide-soft: #f8fafc;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --primary: #4f46e5;
+      --blue: #2563eb;
+      --green: #059669;
+      --purple: #7c3aed;
+      --amber: #d97706;
+      --red: #dc2626;
+      --code-bg: #0f172a;
+      --code-fg: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem 1rem 4.2rem;
+    }
+
+    .deck-stage {
+      width: 100%;
+      max-width: 1180px;
+      aspect-ratio: 16 / 9;
+      position: relative;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      height: 100%;
+      background: var(--slide-bg);
+      border-radius: 16px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      padding: 2.2rem 2.7rem 2.6rem;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slide.active { display: flex; }
+
+    .slide-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0.65rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .section-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      background: rgba(79, 70, 229, 0.1);
+      color: var(--primary);
+    }
+
+    .pill-p1 { background: rgba(220, 38, 38, 0.1); color: var(--red); }
+    .pill-p2 { background: rgba(37, 99, 235, 0.1); color: var(--blue); }
+    .pill-p3 { background: rgba(5, 150, 105, 0.12); color: var(--green); }
+    .pill-p4 { background: rgba(217, 119, 6, 0.12); color: var(--amber); }
+
+    .slide-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      line-height: 1.15;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    h2 {
+      font-size: 1.55rem;
+      line-height: 1.2;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 0.65rem;
+    }
+
+    h3 {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.35rem;
+    }
+
+    p, li {
+      font-size: 0.92rem;
+      line-height: 1.45;
+      color: #1e293b;
+    }
+
+    ul, ol {
+      padding-left: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.85rem;
+      min-height: 0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.15rem;
+      align-items: stretch;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.95rem;
+      align-items: stretch;
+    }
+
+    .box {
+      background: var(--slide-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.95rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .box-accent { border-left: 4px solid var(--primary); }
+    .box-green  { border-left: 4px solid var(--green); }
+    .box-red    { border-left: 4px solid var(--red); }
+    .box-amber  { border-left: 4px solid var(--amber); }
+
+    .math-box {
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 10px;
+      padding: 0.65rem 1rem;
+      text-align: center;
+      font-size: 0.98rem;
+    }
+
+    pre {
+      background: var(--code-bg);
+      color: var(--code-fg);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.76rem;
+      line-height: 1.42;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.84em;
+      background: #f1f5f9;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      color: #334155;
+    }
+
+    pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.48rem 0.65rem;
+      text-align: left;
+    }
+
+    th {
+      background: #f1f5f9;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .flow-node {
+      background: #eef2ff;
+      border: 1.5px solid #818cf8;
+      color: #312e81;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .flow-arrow {
+      font-weight: 800;
+      color: var(--primary);
+      font-size: 1rem;
+    }
+
+    .bar-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .bar-track {
+      height: 14px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .seg-in { background: #3b82f6; }
+    .seg-tool { background: #8b5cf6; }
+    .seg-out { background: #10b981; }
+
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: 0.5rem;
+      margin-top: 0.6rem;
+    }
+
+    /* Cover Slide */
+    .cover-slide {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #312e81 100%);
+      color: #ffffff;
+    }
+    .cover-slide h1, .cover-slide p, .cover-slide li { color: #f8fafc; }
+    .cover-slide .slide-top { border-bottom-color: rgba(255,255,255,0.18); }
+    .cover-slide .slide-num { color: #cbd5e1; }
+    .cover-slide .slide-footer { border-top-color: rgba(255,255,255,0.18); color: #cbd5e1; }
+    .cover-card {
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 0.9rem 1.1rem;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      position: fixed;
+      bottom: 0.85rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+
+    .ctrl-btn {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .ctrl-btn:hover { background: var(--primary); border-color: var(--primary); }
+
+    .ctrl-counter {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      padding: 0 0.4rem;
+    }
+
+    /* Speaker Notes Drawer */
+    .notes-drawer {
+      position: fixed;
+      bottom: 4rem;
+      right: 1.5rem;
+      width: 380px;
+      max-width: calc(100vw - 2rem);
+      background: #0f172a;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 0.9rem 1.05rem;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.5);
+      display: none;
+      z-index: 99;
+    }
+
+    .notes-drawer.open { display: block; }
+
+    /* Responsividade Tablet & Mobile (iPhone 18 Pro Max, iPhone Duo, S26 Ultra) */
+    @media (max-width: 900px) {
+      body { padding: 0.65rem 0.65rem 5rem; justify-content: flex-start; }
+      .deck-stage { aspect-ratio: auto; }
+      .slide { height: auto; min-height: 72vh; padding: 1.35rem 1.25rem 1.5rem; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr !important; }
+      h1 { font-size: 1.55rem; }
+      h2 { font-size: 1.25rem; }
+    }
+
+    @media (max-width: 520px) {
+      .slide { padding: 1rem 0.9rem 1.25rem; border-radius: 12px; }
+      .controls-bar {
+        width: calc(100vw - 1rem);
+        border-radius: 14px;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.45rem;
+      }
+      .ctrl-btn { padding: 0.32rem 0.55rem; font-size: 0.72rem; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+
+    /* Print / PDF Export */
+    @media print {
+      body { background: #ffffff; padding: 0; display: block; }
+      .controls-bar, .notes-drawer { display: none !important; }
+      .deck-stage { max-width: none; aspect-ratio: auto; }
+      .slide {
+        display: flex !important;
+        width: 100%;
+        height: 100vh;
+        box-shadow: none;
+        border-radius: 0;
+        page-break-after: always;
+        break-after: page;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck-stage" id="deckStage">
+
+    <!-- SLIDE 1: CAPA -->
+    <section class="slide cover-slide active" data-notes="Abertura (0:30): Apresentar o título, a questão central e os 4 blocos da apresentação (3+6+5+3 min = 17 min).">
+      <div class="slide-top">
+        <span class="section-pill" style="background:rgba(255,255,255,0.16);color:#fff;">Mestrado &bull; PLN Aplicado com Transformers</span>
+        <span class="slide-num">01 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h1>LangChain: Desenvolvimento de Aplicações de PLN com Modelos de Linguagem</h1>
+        <p style="font-size:1.08rem;color:#c7d2fe;max-width:900px;">
+          Saindo de um LLM isolado para uma arquitetura multiagente integrada a documentos, PostgreSQL/pgvector, busca web em tempo real e observabilidade.
+        </p>
+        <div class="cover-card">
+          <strong style="color:#a5b4fc;">Questão Central:</strong>
+          <p style="margin-top:0.25rem;">Como integrar modelos Transformers a documentos, bancos de dados, ferramentas externas e fluxos de processamento para construir aplicações inteligentes controladas?</p>
+        </div>
+        <div class="grid-2" style="grid-template-columns: repeat(4, 1fr); gap:0.7rem;">
+          <div class="cover-card"><strong>1. Problema</strong><br><small>Slides 2–7</small></div>
+          <div class="cover-card"><strong>2. Fundamentos</strong><br><small>Slides 8–21</small></div>
+          <div class="cover-card"><strong>3. Experimento</strong><br><small>Slides 22–26</small></div>
+          <div class="cover-card"><strong>4. Limitações</strong><br><small>Slides 27–30</small></div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Projeto: AI Tool Orchestrator + Visualizador Transformer/MoE</span>
+        <span>Atalhos: ← → navegar | N notas | Ctrl+P PDF</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 2 -->
+    <section class="slide" data-notes="Bloco 1 (3 min): Contextualizar rapidamente o que é PLN e a evolução até LLMs, destacando que o salto de capacidade trouxe novos desafios operacionais.">
+      <div class="slide-top">
+        <span class="section-pill pill-p1">1. Problema e Motivação</span>
+        <span class="slide-num">02 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>O que é Processamento de Linguagem Natural (PLN)?</h2>
+        <p>Área da IA que desenvolve métodos computacionais para <strong>interpretar, representar, processar e gerar</strong> linguagem humana (classificação, extração, resumo, Q&amp;A, agentes e busca semântica).</p>
+        <table>
+          <thead><tr><th>Abordagem</th><th>Característica Principal</th><th>Limitação</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Baseada em Regras</strong></td><td>Regras linguísticas e padrões explícitos</td><td>Baixa flexibilidade para variações</td></tr>
+            <tr><td><strong>Machine Learning</strong></td><td>Aprende padrões estatísticos de dados</td><td>Depende de engenharia de atributos</td></tr>
+            <tr><td><strong>Deep Learning</strong></td><td>Redes neurais aprendem representações</td><td>Alto custo computacional e dados</td></tr>
+            <tr><td><strong>Transformers</strong></td><td>Atenção contextual e paralelismo</td><td>Custo de inferência e janela finita</td></tr>
+            <tr><td><strong>LLMs</strong></td><td>Modelos de linguagem em larga escala</td><td>Alucinações e dados desatualizados</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="slide-footer"><span>Evolução histórica do PLN</span><span>Bloco 1: Problema</span></div>
+    </section>
+
+    <!-- SLIDE 3: TOKENS -->
+    <section class="slide" data-notes="Explicar detalhadamente o que são tokens, BPE/subpalavras, vocabulário |V| e por que tokens determinam custo e janela de contexto.">
+      <div class="slide-top">
+        <span class="section-pill pill-p1">1. Problema e Motivação</span>
+        <span class="slide-num">03 / 30</span>
+      </div>
+      <div class="slide-body">
+        <h2>Tokens: Como o Texto é Fatiado Antes da IA</h2>
+        <div class="box" style="align-items:center;padding:0.45rem 0.65rem;">
+          <img src="assets/tokens_embeddings_fluxo.png" alt="Visualização de Tokens, IDs discretos, Vetores de Embedding, Positional Encoding PE(pos) e arcos de Atenção no sistema" style="width:100%;max-height:190px;object-fit:contain;border-radius:8px;">
+          <small style="color:var(--muted);text-align:center;">Cada palavra/subpalavra recebe um ID discreto, um vetor de Embedding (barras coloridas) e sua posição <code>PE(pos)</code>.</small>
+        </div>
+        <div class="grid-2">
+          <div class="box box-accent">
+            <h3>Como Funciona a Tokenização (BPE / SentencePiece)</h3>
+            <ul style="font-size:0.8rem;">
+              <li><strong>Subpalavras &amp; Vocabulário $|V|$:</strong> palavras frequentes viram 1 token (<code>"Busque"</code>, <code>"arquivos"</code>); palavras raras são quebradas em prefixos/sufixos.</li>
+              <li><strong>IDs &amp; Idioma:</strong> espaços e acentos geram IDs (<code>ID 32110</code>); português consome ~1,2×–1,4× mais tokens que inglês.</li>
+            </ul>
+          </div>
+          <div class="box box-green">
+            <h3>Impacto Direto na Aplicação</h3>
+            <ul style="font-size:0.8rem;">
+              <li><strong>Custo financeiro:</strong> APIs cobram por <em>input + tool calling + output tokens</em>.</li>
+              <li><strong>Janela de contexto &amp; Latência:</strong> define o limite máximo $n$ na memória e o tempo de geração autoregressiva.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Unidade atômica dos LLMs: Token ≠ Palavra</span><span>Bloco 1: Fundamentos de Entrada</span></div>
+    </section>
+
+    <!-- SLIDE 4: EMBEDDINGS -->
+    <section class="slide" data-notes="Explicar detalhadamente o que são Embeddings, lookup na matriz W_E, geometria semântica e Positional Encoding.">
+      <div class="slide-top">
+        <span class="section-pill pill-p1">1. Problema e Motivação</span>
+        <span class="slide-num">04 / 30</span>
+      </div>
+      <div class="slide-body">
+        <h2>Embeddings: Do ID Discreto ao Espaço Semântico Contínuo</h2>
+        <p style="font-size:0.88rem;">Um ID numérico como <code>9841</code> não carrega significado nem proximidade. O <strong>Embedding</strong> converte cada token em um vetor denso contínuo em $\mathbb{R}^d$ ($d = 768 \dots 6144$) que captura propriedades semânticas e sintáticas.</p>
+        <div class="grid-2">
+          <div class="box">
+            <h3>Mapeamento &amp; Codificação Posicional</h3>
+            <div class="math-box" style="font-size:0.84rem;">
+              $$e_i = W_E[t_i] \in \mathbb{R}^{d}, \qquad x_i = e_i + p_i, \qquad X \in \mathbb{R}^{n \times d}$$
+            </div>
+            <ul style="font-size:0.81rem;">
+              <li><strong>Matriz de Lookup ($W_E \in \mathbb{R}^{|V| \times d}$):</strong> aprendida no treino; cada linha é a assinatura vetorial de um token.</li>
+              <li><strong>Positional Encoding ($p_i$ / RoPE):</strong> injeta a ordem da palavra para distinguir <em>"A comprou B"</em> de <em>"B comprou A"</em>.</li>
+            </ul>
+          </div>
+          <div class="box box-accent">
+            <h3>Geometria Semântica &amp; Uso Duplo no Sistema</h3>
+            <ul style="font-size:0.81rem;">
+              <li><strong>Proximidade por significado:</strong> vetores de <code>"faturamento"</code>, <code>"vendas"</code> e <code>"receita"</code> apontam em direções próximas ($\text{sim}_{\cos} \to 1$).</li>
+              <li><strong>1. Nos Transformers:</strong> $X$ alimenta as camadas de <em>Self-Attention</em> ($Q, K, V$) para contextualizar cada palavra.</li>
+              <li><strong>2. No RAG / pgvector:</strong> embeddings de frases permitem busca semântica mesmo sem palavras idênticas.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Vetores densos em R^d + posição = entrada do Transformer</span><span>Bloco 1: Fundamentos de Entrada</span></div>
+    </section>
+
+    <!-- SLIDE 5 -->
+    <section class="slide" data-notes="Mostrar o contraste claro entre o que um LLM faz bem sozinho (linguagem) e o que ele NÃO faz sozinho (dados privados, tempo real, execução).">
+      <div class="slide-top">
+        <span class="section-pill pill-p1">1. Problema e Motivação</span>
+        <span class="slide-num">03 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Limitações de um Modelo de Linguagem (LLM) Isolado</h2>
+        <div class="grid-2">
+          <div class="box box-green">
+            <h3>✅ O que um LLM faz bem sozinho</h3>
+            <ul>
+              <li>Interpretar perguntas em linguagem natural.</li>
+              <li>Resumir textos e classificar intenções.</li>
+              <li>Gerar explicações, código e rascunhos.</li>
+              <li>Transformar formatos textuais.</li>
+            </ul>
+          </div>
+          <div class="box box-red">
+            <h3>❌ O que um LLM isolado NÃO resolve</h3>
+            <ul>
+              <li>Não acessa documentos privados nem bancos SQL.</li>
+              <li>Não possui informação em tempo real (pós-treino).</li>
+              <li>Não executa ações ou consultas externas.</li>
+              <li>Pode alucinar números e fatos com alta confiança.</li>
+              <li>Possui janela de contexto limitada e sem estado persistente.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Motivação: por que um chat puro não basta em produção</span><span>Bloco 1: Problema</span></div>
+    </section>
+
+    <!-- SLIDE 4 -->
+    <section class="slide" data-notes="Usar exemplos concretos do nosso sistema: total de compras em 2025 no PostgreSQL e próximo jogo do Flamengo na Web.">
+      <div class="slide-top">
+        <span class="section-pill pill-p1">1. Problema e Motivação</span>
+        <span class="slide-num">04 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Problema Prático: Dados Privados &amp; Tempo Real</h2>
+        <div class="grid-2">
+          <div class="box box-accent">
+            <h3>Caso 1 — Banco Corporativo (PostgreSQL)</h3>
+            <p><em>"Qual foi o total gasto em 2025 nas compras do restaurante por categoria?"</em></p>
+            <p>Um LLM isolado <strong>não conhece</strong> suas tabelas. Sem conexão SQL controlada, ele recusa ou inventa valores.</p>
+          </div>
+          <div class="box box-accent">
+            <h3>Caso 2 — Informação Atualizada (Web)</h3>
+            <p><em>"Quando será o próximo jogo do Flamengo?"</em></p>
+            <p>Exige buscar fontes diversas atualizadas e <strong>ler o conteúdo real das páginas</strong>, não apenas treinar o modelo.</p>
+          </div>
+        </div>
+        <div class="box box-amber">
+          <p><strong>Conclusão:</strong> A inteligência da aplicação não reside apenas nos pesos do Transformer, mas na <strong>arquitetura que conecta o modelo ao mundo externo</strong>.</p>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Do modelo isolado à aplicação integrada</span><span>Bloco 1: Problema</span></div>
+    </section>
+
+    <!-- SLIDE 5 -->
+    <section class="slide" data-notes="Deixar claro: LangChain NÃO é um LLM, é a camada de orquestração.">
+      <div class="slide-top">
+        <span class="section-pill pill-p1">1. Problema e Motivação</span>
+        <span class="slide-num">05 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>A Solução: LangChain como Camada de Orquestração</h2>
+        <div class="math-box">
+          $$\text{Aplicação Inteligente} = \text{LLM (Transformer)} + \text{Dados (RAG/SQL)} + \text{Ferramentas} + \text{Orquestração}$$
+        </div>
+        <div class="flow-row" style="margin:0.4rem 0;">
+          <div class="flow-node">Usuário</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Orquestrador (LangChain)</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Transformer (LLM)</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Tools (SQL / Web / PDF)</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Resposta Fundamentada</div>
+        </div>
+        <div class="box">
+          <p><strong>Ponto-chave:</strong> O LangChain <strong>não substitui o Transformer</strong> nem treina modelos. Ele organiza prompts, parsers, recuperadores (RAG), ferramentas externas e agentes em fluxos controláveis.</p>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Visão sistêmica: orquestração</span><span>Bloco 1: Problema</span></div>
+    </section>
+
+    <!-- SLIDE 6 -->
+    <section class="slide" data-notes="Bloco 2 (6 min): Explicar rápido a ponte do texto discreto até a matriz contínua X.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">06 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Representação Computacional da Linguagem</h2>
+        <div class="flow-row">
+          <div class="flow-node">Texto: "O modelo consulta 2025"</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Tokens BPE: ["O", "modelo", "consult", "##a", "2025"]</div><span class="flow-arrow">→</span>
+          <div class="flow-node">IDs: [12, 548, 912, 74, 2025]</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Embeddings + Posição</div>
+        </div>
+        <div class="grid-2">
+          <div class="math-box">
+            <p style="margin-bottom:0.4rem;">Cada token é mapeado em um vetor contínuo + posição:</p>
+            $$x_i = e_i + p_i \in \mathbb{R}^{d}$$
+            $$X \in \mathbb{R}^{n \times d}$$
+          </div>
+          <div class="box">
+            <h3>Por que isso importa?</h3>
+            <ul>
+              <li>$n$: número de tokens (impacta custo e atenção $O(n^2)$).</li>
+              <li>$d$: dimensão do embedding ($d_{\text{model}}$).</li>
+              <li>A qualidade da escrita do prompt define quais subpalavras e vetores entram na matriz $X$.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Tokenização e Espaço Vetorial</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 7 -->
+    <section class="slide" data-notes="Comparar RNN/LSTM sequenciais com o paralelismo direto do Transformer.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">07 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Evolução: de RNN e LSTM para Transformers</h2>
+        <div class="grid-3">
+          <div class="box box-red">
+            <h3>RNN</h3>
+            <div class="math-box" style="font-size:0.84rem;">$$h_t = f(W_x x_t + W_h h_{t-1} + b)$$</div>
+            <p>Processamento estritamente sequencial; sofre com <em>vanishing gradient</em> em dependências longas.</p>
+          </div>
+          <div class="box box-amber">
+            <h3>LSTM</h3>
+            <div class="math-box" style="font-size:0.78rem;">
+              $$f_t = \sigma(W_f[x_t, h_{t-1}] + b_f)$$
+              $$C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t$$
+            </div>
+            <p>Portas controlam esquecimento e memória, mas o gargalo sequencial permanece.</p>
+          </div>
+          <div class="box box-green">
+            <h3>Transformer (2017)</h3>
+            <p><strong>Substitui recorrência por Atenção:</strong> todos os tokens interagem diretamente em paralelo ($O(1)$ saltos entre quaisquer palavras), preservando contexto global.</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Vaswani et al. (2017) — Attention Is All You Need</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 8 -->
+    <section class="slide" data-notes="Conectar diretamente com o Seletor de Arquiteturas que temos no front-end da aplicação.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">08 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>As 3 Famílias da Arquitetura Transformer</h2>
+        <div class="grid-3">
+          <!-- Família 1: Encoder-Only -->
+          <div class="box box-accent" style="padding:0.75rem 0.9rem;">
+            <h3 style="color:var(--blue);margin-bottom:0.2rem;">1. Encoder-Only (BERT, RoBERTa)</h3>
+            <svg viewBox="0 0 240 120" style="width:100%;height:112px;background:#ffffff;border:1px solid var(--border);border-radius:8px;" role="img" aria-label="Diagrama Encoder-Only com atenção bidirecional completa">
+              <rect x="14" y="14" width="84" height="92" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.3"/>
+              <text x="56" y="30" text-anchor="middle" font-size="8.5" font-weight="800" fill="#1d4ed8">Atenção 100%</text>
+              <text x="56" y="40" text-anchor="middle" font-size="8.5" font-weight="800" fill="#1d4ed8">Bidirecional</text>
+              <!-- 4x4 full matrix -->
+              <g fill="#2563eb" opacity="0.85">
+                <circle cx="34" cy="54" r="3.5"/><circle cx="48" cy="54" r="3.5"/><circle cx="62" cy="54" r="3.5"/><circle cx="76" cy="54" r="3.5"/>
+                <circle cx="34" cy="67" r="3.5"/><circle cx="48" cy="67" r="3.5"/><circle cx="62" cy="67" r="3.5"/><circle cx="76" cy="67" r="3.5"/>
+                <circle cx="34" cy="80" r="3.5"/><circle cx="48" cy="80" r="3.5"/><circle cx="62" cy="80" r="3.5"/><circle cx="76" cy="80" r="3.5"/>
+                <circle cx="34" cy="93" r="3.5"/><circle cx="48" cy="93" r="3.5"/><circle cx="62" cy="93" r="3.5"/><circle cx="76" cy="93" r="3.5"/>
+              </g>
+              <path d="M 102 60 L 122 60" stroke="#2563eb" stroke-width="2"/>
+              <rect x="124" y="24" width="102" height="72" rx="6" fill="#f8fafc" stroke="#93c5fd"/>
+              <text x="175" y="45" text-anchor="middle" font-size="9" font-weight="700" fill="#0f172a">Dense FFN</text>
+              <text x="175" y="62" text-anchor="middle" font-size="8.5" fill="#475569">Pooling [CLS]</text>
+              <text x="175" y="80" text-anchor="middle" font-size="8.5" font-weight="700" fill="#1d4ed8">Embeddings / NER</text>
+            </svg>
+            <ul style="font-size:0.78rem;gap:0.25rem;">
+              <li><strong>Treino (MLM):</strong> prevê tokens mascarados usando contexto à esquerda e à direita.</li>
+              <li><strong>Fluxo:</strong> gera representações semânticas densas; não é ideal para geração livre.</li>
+              <li><strong>Uso:</strong> busca vetorial (RAG), classificação e extração de entidades.</li>
+            </ul>
+          </div>
+
+          <!-- Família 2: Decoder-Only -->
+          <div class="box" style="border-left:4px solid var(--purple);padding:0.75rem 0.9rem;">
+            <h3 style="color:var(--purple);margin-bottom:0.2rem;">2. Decoder-Only (GPT, Llama, Kimi)</h3>
+            <svg viewBox="0 0 240 120" style="width:100%;height:112px;background:#ffffff;border:1px solid var(--border);border-radius:8px;" role="img" aria-label="Diagrama Decoder-Only com máscara causal triangular">
+              <rect x="14" y="14" width="84" height="92" rx="6" fill="#faf5ff" stroke="#8b5cf6" stroke-width="1.3"/>
+              <text x="56" y="30" text-anchor="middle" font-size="8.5" font-weight="800" fill="#6d28d9">Máscara Causal</text>
+              <text x="56" y="40" text-anchor="middle" font-size="8.5" font-weight="800" fill="#6d28d9">(c ≤ r)</text>
+              <!-- Lower triangle active, upper muted -->
+              <circle cx="34" cy="54" r="3.5" fill="#7c3aed"/><circle cx="48" cy="54" r="2.2" fill="#cbd5e1"/><circle cx="62" cy="54" r="2.2" fill="#cbd5e1"/><circle cx="76" cy="54" r="2.2" fill="#cbd5e1"/>
+              <circle cx="34" cy="67" r="3.5" fill="#7c3aed"/><circle cx="48" cy="67" r="3.5" fill="#7c3aed"/><circle cx="62" cy="67" r="2.2" fill="#cbd5e1"/><circle cx="76" cy="67" r="2.2" fill="#cbd5e1"/>
+              <circle cx="34" cy="80" r="3.5" fill="#7c3aed"/><circle cx="48" cy="80" r="3.5" fill="#7c3aed"/><circle cx="62" cy="80" r="3.5" fill="#7c3aed"/><circle cx="76" cy="80" r="2.2" fill="#cbd5e1"/>
+              <circle cx="34" cy="93" r="3.5" fill="#7c3aed"/><circle cx="48" cy="93" r="3.5" fill="#7c3aed"/><circle cx="62" cy="93" r="3.5" fill="#7c3aed"/><circle cx="76" cy="93" r="3.5" fill="#7c3aed"/>
+              <path d="M 102 60 L 122 60" stroke="#7c3aed" stroke-width="2"/>
+              <rect x="124" y="24" width="102" height="72" rx="6" fill="#f8fafc" stroke="#c4b5fd"/>
+              <text x="175" y="45" text-anchor="middle" font-size="9" font-weight="700" fill="#0f172a">FFN / MoE</text>
+              <text x="175" y="62" text-anchor="middle" font-size="8.5" fill="#475569">KV-Cache + LM Head</text>
+              <text x="175" y="80" text-anchor="middle" font-size="8.5" font-weight="700" fill="#6d28d9">Next-Token / Tool</text>
+            </svg>
+            <ul style="font-size:0.78rem;gap:0.25rem;">
+              <li><strong>Treino (CLM):</strong> prevê o próximo token $P(t_k \mid t_{&lt;k})$ sem ver o futuro.</li>
+              <li><strong>Fluxo:</strong> geração autoregressiva eficiente com reaproveitamento via <em>KV-Cache</em>.</li>
+              <li><strong>Uso:</strong> LLMs modernos, chat, raciocínio e <em>Tool Calling</em> em agentes.</li>
+            </ul>
+          </div>
+
+          <!-- Família 3: Encoder-Decoder -->
+          <div class="box box-green" style="padding:0.75rem 0.9rem;">
+            <h3 style="color:var(--green);margin-bottom:0.2rem;">3. Encoder-Decoder (T5, BART)</h3>
+            <svg viewBox="0 0 240 120" style="width:100%;height:112px;background:#ffffff;border:1px solid var(--border);border-radius:8px;" role="img" aria-label="Diagrama Encoder-Decoder com ponte Cross-Attention K,V e Q">
+              <rect x="12" y="18" width="84" height="84" rx="6" fill="#ecfdf5" stroke="#10b981" stroke-width="1.3"/>
+              <text x="54" y="38" text-anchor="middle" font-size="9" font-weight="800" fill="#047857">Encoder</text>
+              <text x="54" y="53" text-anchor="middle" font-size="8" fill="#475569">Bidirecional</text>
+              <text x="54" y="74" text-anchor="middle" font-size="8.5" font-weight="700" fill="#059669">Emite (K, V)</text>
+              <path d="M 96 60 L 128 60" stroke="#059669" stroke-width="2" stroke-dasharray="3 2"/>
+              <text x="112" y="52" text-anchor="middle" font-size="7.5" font-weight="700" fill="#047857">Cross</text>
+              <rect x="130" y="18" width="98" height="84" rx="6" fill="#f8fafc" stroke="#6ee7b7" stroke-width="1.3"/>
+              <text x="179" y="38" text-anchor="middle" font-size="9" font-weight="800" fill="#0f172a">Decoder</text>
+              <text x="179" y="53" text-anchor="middle" font-size="8" fill="#475569">Causal (Q) × (K,V)</text>
+              <text x="179" y="74" text-anchor="middle" font-size="8.5" font-weight="700" fill="#047857">Saída Seq2Seq</text>
+            </svg>
+            <ul style="font-size:0.78rem;gap:0.25rem;">
+              <li><strong>Treino (Span/Seq2Seq):</strong> codifica toda a entrada e gera outra sequência condicionada.</li>
+              <li><strong>Fluxo:</strong> <em>Cross-Attention</em> conecta $Q$ do Decoder às chaves/valores $(K,V)$ do Encoder.</li>
+              <li><strong>Uso:</strong> tradução automática, resumo e transformação estruturada de texto.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Encoder vs. Decoder vs. Encoder-Decoder</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 9 -->
+    <section class="slide" data-notes="Explicar Q, K, V com intuição clara: Q procura, K anuncia, V entrega.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">09 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Matemática da Self-Attention ($Q, K, V$)</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>Projeções Lineares</h3>
+            <div class="math-box">$$Q = XW_Q, \quad K = XW_K, \quad V = XW_V$$</div>
+            <ul>
+              <li><strong>Query ($Q$):</strong> o que o token está buscando no contexto.</li>
+              <li><strong>Key ($K$):</strong> o rótulo que cada token oferece para comparação.</li>
+              <li><strong>Value ($V$):</strong> o conteúdo semântico agregado.</li>
+            </ul>
+          </div>
+          <div class="box box-accent">
+            <h3>Scaled Dot-Product Attention</h3>
+            <div class="math-box">$$\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$</div>
+            <p>$\frac{1}{\sqrt{d_k}}$ evita saturação do Softmax; $\text{softmax}(z_i)=\frac{e^{z_i}}{\sum_j e^{z_j}}$ garante pesos que somam 1 por linha.</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Mecanismo central de contextualização</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 10 -->
+    <section class="slide" data-notes="Atenção mistura tokens; FFN transforma cada posição não linearmente.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">10 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Multi-Head Attention &amp; Feed-Forward Network (FFN)</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>Multi-Head Attention</h3>
+            <div class="math-box" style="font-size:0.86rem;">
+              $$\text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V)$$
+              $$\text{MultiHead} = \text{Concat}(\text{head}_1, \dots, \text{head}_h)W^O$$
+            </div>
+            <p>Múltiplos subespaços aprendem relações distintas em paralelo (sintaxe, entidades, dependências longas).</p>
+          </div>
+          <div class="box box-accent">
+            <h3>Feed-Forward Network (FFN / MLP)</h3>
+            <div class="math-box" style="font-size:0.86rem;">$$\text{FFN}(x) = W_2 \cdot \sigma(W_1 x + b_1) + b_2$$</div>
+            <p><strong>Papéis distintos:</strong> a Atenção <em>mistura informação entre tokens</em>; a FFN aplica transformação não linear <em>individualmente em cada posição</em>.</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Múltiplas cabeças + MLP posicional</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 11 -->
+    <section class="slide" data-notes="Destacar MoE como alternativa esparsa à FFN densa tradicional, conforme solicitado no roteiro.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">11 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Alternativas à FFN Densa: SwiGLU e Mixture of Experts (MoE)</h2>
+        <div class="grid-2" style="grid-template-columns: 1.05fr 0.95fr; align-items:center;">
+          <div style="display:flex;flex-direction:column;gap:0.65rem;">
+            <div class="box">
+              <h3>SwiGLU &amp; MoE</h3>
+              <div class="math-box" style="font-size:0.82rem;">
+                $$\text{SwiGLU}(x) = (\text{SiLU}(xW_1) \odot xW_2)W_3$$
+                $$\text{MoE}(x) = \sum_{i \in \text{TopK}(x)} g_i(x)E_i(x)$$
+              </div>
+              <p style="font-size:0.84rem;">No MoE, o roteador $g_i(x) = \text{softmax}(xW_r + b_r)_i$ ativa apenas os $K$ melhores especialistas por token, escalando capacidade sem explodir FLOPs.</p>
+            </div>
+            <table>
+              <thead><tr><th>Critério</th><th>FFN Densa</th><th>MoE (Top-K)</th></tr></thead>
+              <tbody>
+                <tr><td>Caminho</td><td>1 rede compartilhada</td><td>$N$ especialistas + roteador</td></tr>
+                <tr><td>Parâm. ativos</td><td>100% por token</td><td>Subconjunto Top-K por token</td></tr>
+                <tr><td>Desafio</td><td>Custo linear alto</td><td>Balanceamento e memória VRAM</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="box" style="align-items:center;padding:0.55rem;">
+            <img src="assets/moe_architecture.jpg" alt="Arquitetura Mixture of Experts (MoE): Routed Experts (Expert 0..15), Router e Shared Expert somados após Attention" style="width:100%;max-height:335px;object-fit:contain;border-radius:8px;">
+            <small style="color:var(--muted);text-align:center;">MoE substituindo a FFN: Router seleciona Routed Experts + Shared Expert</small>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Shazeer et al. (2017) &bull; Switch Transformers (2022)</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 12 -->
+    <section class="slide" data-notes="Fechar o bloco interno do Transformer mostrando Residual, Norm e geração de tokens.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">12 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Normalização, Conexões Residuais &amp; Geração do Próximo Token</h2>
+        <div class="grid-2" style="grid-template-columns: 1.05fr 0.95fr; align-items:center;">
+          <div style="display:flex;flex-direction:column;gap:0.65rem;">
+            <div class="box">
+              <h3>Estabilização do Bloco (Pre-Norm + Residual)</h3>
+              <div class="math-box" style="font-size:0.84rem;">
+                $$H_1 = \text{Norm}(X + \text{Attention}(X)), \quad H_2 = \text{Norm}(H_1 + \text{FFN/MoE}(H_1))$$
+              </div>
+              <p style="font-size:0.84rem;">Modelos modernos (LLaMA, GPT, Gemini, Kimi) usam <strong>Pre-Norm com RMSNorm</strong> e conexões residuais para estabilizar gradientes.</p>
+            </div>
+            <div class="box box-accent">
+              <h3>LM Head &amp; Decodificação</h3>
+              <div class="math-box" style="font-size:0.84rem;">
+                $$\text{logits} = hW_{\text{vocab}}^T, \quad P(t_i|\text{ctx}) = \text{softmax}(\text{logits})_i$$
+              </div>
+              <p style="font-size:0.84rem;">Seleção do próximo token (ou JSON de Tool Call) via <em>Greedy</em> ($T=0$), <em>Temperatura</em>, <em>Top-K</em> ou <em>Top-P</em>.</p>
+            </div>
+          </div>
+          <div class="box" style="align-items:center;padding:0.55rem;">
+            <img src="assets/transformers_moe.jpg" alt="Comparação visual entre Bloco Decoder com FFN Densa e com Mixture of Experts (LayerNorm, Masked Self-Attention e Residual)" style="width:100%;max-height:335px;object-fit:contain;border-radius:8px;">
+            <small style="color:var(--muted);text-align:center;">Fluxo completo no Decoder Block: Positional Embedding → LayerNorm → Self-Attention → Residual → FFN/MoE</small>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Do último bloco Transformer ao token gerado</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 13 -->
+    <section class="slide" data-notes="Separar claramente LangChain, LangGraph, LangSmith, OpenRouter e LiteLLM.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">13 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Ecossistema LangChain &amp; Camada de Provedores</h2>
+        <table>
+          <thead><tr><th>Tecnologia</th><th>Responsabilidade na Arquitetura</th></tr></thead>
+          <tbody>
+            <tr><td><strong>LangChain</strong></td><td>Abstrações para prompts, chains (LCEL), parsers, RAG, tools e agentes</td></tr>
+            <tr><td><strong>LangGraph</strong></td><td>Orquestração baseada em grafos com estado persistente, ciclos e intervenção humana</td></tr>
+            <tr><td><strong>LangSmith</strong></td><td>Rastreamento passo a passo, métricas de avaliação e observabilidade</td></tr>
+            <tr><td><strong>OpenRouter / LiteLLM</strong></td><td>Gateway unificado para múltiplos LLMs (OpenAI, Google, Moonshot, locais) com roteamento</td></tr>
+          </tbody>
+        </table>
+        <pre><code>from langchain_openai import ChatOpenAI
+model = ChatOpenAI(model="openai/gpt-6.1-sol", base_url="https://openrouter.ai/api/v1", temperature=0)</code></pre>
+      </div>
+      <div class="slide-footer"><span>Desacoplamento entre orquestração e provedor</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 14 -->
+    <section class="slide" data-notes="Mostrar LCEL como composição matemática de funções e a importância de Output Parsers estruturados.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">14 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Prompt Templates, Chains (LCEL) &amp; Output Parsers</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>Composição LCEL</h3>
+            <div class="math-box" style="font-size:0.86rem;">$$f(x) = f_3(f_2(f_1(x))) \iff \text{prompt} \mid \text{model} \mid \text{parser}$$</div>
+            <pre><code>chain = prompt | model | StrOutputParser()
+res = chain.invoke({"assunto": "MoE"})</code></pre>
+          </div>
+          <div class="box box-accent">
+            <h3>Saídas Estruturadas (JSON)</h3>
+            <pre><code>{
+  "categoria": "financeiro",
+  "valor": 12500.00,
+  "requer_aprovacao": true
+}</code></pre>
+            <p>Permite validar tipos com Pydantic e integrar o LLM a APIs e bancos com segurança.</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>LCEL e contratos de saída</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 15 -->
+    <section class="slide" data-notes="Explicar o papel do RAG e a diferença fundamental para Fine-Tuning.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">15 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>RAG — Retrieval-Augmented Generation</h2>
+        <p>Enviar PDFs e manuais inteiros em toda pergunta estoura tokens, aumenta custo e dilui a atenção. A solução é recuperar apenas os trechos relevantes no momento da consulta.</p>
+        <div class="flow-row">
+          <div class="flow-node">Documentos</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Chunking</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Embeddings</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Banco Vetorial</div><span class="flow-arrow">→</span>
+          <div class="flow-node">Top-K + Pergunta → LLM</div>
+        </div>
+        <div class="grid-2">
+          <div class="box box-accent"><h3>Fine-Tuning</h3><p>Altera os <strong>pesos do modelo</strong> via treinamento; caro para dados que mudam todo dia.</p></div>
+          <div class="box box-green"><h3>RAG (Lewis et al., 2020)</h3><p>Injeta <strong>conhecimento externo no contexto</strong> em tempo de inferência com rastreabilidade de fonte.</p></div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Integração com conhecimento documental</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 16 -->
+    <section class="slide" data-notes="Detalhar chunking + overlap + similaridade do cosseno + pgvector.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">16 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Chunking, Espaço Vetorial &amp; PostgreSQL + pgvector</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>Teoria da Segmentação &amp; Métricas Vetoriais</h3>
+            <ul style="font-size:0.83rem;">
+              <li><strong>Trade-off do Chunking:</strong> chunks curtos aumentam a precisão da recuperação; chunks longos preservam contexto. O <code>chunk_overlap</code> evita perda semântica nas fronteiras.</li>
+              <li><strong>Similaridade no Espaço $\mathbb{R}^d$:</strong></li>
+            </ul>
+            <div class="math-box" style="font-size:0.86rem;">$$\text{sim}_{\cos}(A, B) = \frac{A \cdot B}{\|A\|\|B\|}, \qquad d_{L_2}(A,B)=\|A-B\|_2$$</div>
+            <p style="font-size:0.82rem;"><strong>Busca Híbrida + Reranking:</strong> combina escore vetorial denso + BM25 lexical + filtros de metadados; índices <strong>HNSW</strong> reduzem a busca para $O(\log N)$.</p>
+          </div>
+          <div class="box box-green">
+            <h3>PostgreSQL + pgvector na Prática</h3>
+            <p style="font-size:0.83rem;">Unifica ACID relacional e busca por proximidade vetorial na mesma consulta, evitando sincronização complexa entre dois bancos:</p>
+            <pre><code>SELECT content, 1 - (embedding &lt;=&gt; :q_vec) AS score
+FROM doc_chunks
+WHERE metadata-&gt;&gt;'categoria' = 'operacional'
+ORDER BY embedding &lt;=&gt; :q_vec LIMIT 4;</code></pre>
+            <p style="font-size:0.81rem;color:var(--muted);">Metadados restringem o espaço de busca antes ou durante o ranqueamento vetorial.</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Recuperação semântica + filtros relacionais</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 17 -->
+    <section class="slide" data-notes="Enfatizar que o LLM nunca executa código diretamente; ele emite um contrato JSON e a aplicação executa.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">17 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Tools &amp; Fundamento Teórico do Tool Calling</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>Como o Transformer "Chama" uma Função?</h3>
+            <ul style="font-size:0.82rem;">
+              <li><strong>O LLM não executa código:</strong> ele recebe os <em>JSON Schemas</em> das ferramentas no contexto e gera tokens estruturados propondo a chamada.</li>
+              <li><strong>Âncora Semântica:</strong> a <code>docstring</code> e a tipagem guiam a Self-Attention e o roteador MoE para escolher a ferramenta exata.</li>
+            </ul>
+            <pre><code>@tool
+def calcular_faturamento(qtd: int, ticket: float) -> float:
+    """Calcula faturamento sem erro aritmético."""
+    return qtd * ticket</code></pre>
+          </div>
+          <div class="box box-accent">
+            <h3>Contrato de Execução Determinística</h3>
+            <ol style="font-size:0.83rem;">
+              <li><strong>Proposta:</strong> LLM emite <code>tool_calls</code> (nome + argumentos JSON).</li>
+              <li><strong>Validação:</strong> Orquestrador valida schema, tipos e permissões de acesso (nunca confia cegamente no JSON).</li>
+              <li><strong>Execução:</strong> Python/SQL/Web executa de forma determinística e reprodutível.</li>
+              <li><strong>Realimentação:</strong> Resultado volta como <code>ToolMessage</code> para a próxima passada do Transformer.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Ponte entre linguagem e execução determinística</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 18 -->
+    <section class="slide" data-notes="Apresentar a formalização matemática do agente (política e transição de estado) e comparar Chain vs Agent.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">18 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Agentes Inteligentes (Ciclo ReAct) vs. Chains</h2>
+        <div class="grid-2" style="grid-template-columns: 1.05fr 0.95fr; align-items:center;">
+          <div class="box" style="align-items:center;padding:0.55rem;">
+            <img src="assets/react_agent_loop.png" alt="Fluxo de funcionamento de um Agente ReAct: Task -> Reasoning (LLM) -> Action (Tools) -> Observe -> Loop -> Final Answer" style="width:100%;max-height:290px;object-fit:contain;border-radius:8px;">
+            <small style="color:var(--muted);text-align:center;">Ciclo ReAct (Reason + Act): o agente raciocina, aciona ferramentas, observa o retorno e itera até a resposta final.</small>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.55rem;">
+            <div class="box">
+              <h3>Fundamentação: Paradigma ReAct (Yao et al., 2023)</h3>
+              <div class="math-box" style="font-size:0.82rem;">
+                $$a_t \sim \pi(a \mid s_t), \qquad s_{t+1} = T(s_t, a_t, o_t)$$
+              </div>
+              <ul style="font-size:0.8rem;">
+                <li><strong>Reasoning:</strong> traços de raciocínio explícito no contexto ($s_t$) decompõem a tarefa antes da ação.</li>
+                <li><strong>Acting + Observing:</strong> a observação real ($o_t$) atualiza o estado ($s_{t+1}$), reduzindo propagação de alucinações.</li>
+              </ul>
+            </div>
+            <table>
+              <thead><tr><th>Critério</th><th>Chain (LCEL)</th><th>Agent (ReAct)</th></tr></thead>
+              <tbody>
+                <tr><td>Fluxo</td><td>DAG fixo ($A \to B \to C$)</td><td>Ciclo dinâmico condicionado a $o_t$</td></tr>
+                <tr><td>Custo / Latência</td><td>Previsível (1 passada)</td><td>Variável ($k$ iterações no loop)</td></tr>
+                <tr><td>Uso ideal</td><td>Pipelines padronizados</td><td>Investigação multi-fonte</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Decisão dinâmica condicionada ao estado</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 19 -->
+    <section class="slide" data-notes="Fechar fundamentos técnicos com LangGraph (estado e controle) e MCP (padronização de ferramentas).">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">19 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>LangGraph &amp; Model Context Protocol (MCP)</h2>
+        <div class="grid-2">
+          <div class="box box-accent">
+            <h3>LangGraph — Máquina de Estados em Grafo $(V, E, S)$</h3>
+            <ul style="font-size:0.82rem;">
+              <li><strong>Por que grafos?</strong> Loops ReAct puros são difíceis de auditar; LangGraph modela o agente como grafo direcionado com ciclos controlados.</li>
+              <li><strong>State ($S$) + Reducers:</strong> estado tipado compartilhado e atualizado incrementalmente entre nós ($V$).</li>
+              <li><strong>Conditional Edges ($E$):</strong> roteamento determinístico ou via LLM com limite de iterações.</li>
+              <li><strong>Checkpoints &amp; Interrupts:</strong> persistência de estado para tolerância a falhas e pausa <em>Human-in-the-loop</em>.</li>
+            </ul>
+          </div>
+          <div class="box box-green">
+            <h3>MCP — Padronização Cliente–Servidor ($N \times M \to N + M$)</h3>
+            <div class="flow-row" style="justify-content:flex-start;margin:0.25rem 0;">
+              <div class="flow-node">Cliente IA</div><span class="flow-arrow">→</span>
+              <div class="flow-node">Cliente MCP</div><span class="flow-arrow">→</span>
+              <div class="flow-node">Servidor MCP</div><span class="flow-arrow">→</span>
+              <div class="flow-node">Recurso</div>
+            </div>
+            <ul style="font-size:0.82rem;">
+              <li><strong>Problema resolvido:</strong> evita criar conectores exclusivos para cada par modelo × ferramenta.</li>
+              <li><strong>Primitivas JSON-RPC:</strong> expõe <em>Tools</em> (ações), <em>Resources</em> (dados) e <em>Prompts</em> de forma desacoplada da orquestração.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Controle de grafos e padronização de contexto</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 20 -->
+    <section class="slide" data-notes="Bloco 3 (5 min): Apresentar o projeto implementado neste repositório — AI Tool Orchestrator.">
+      <div class="slide-top">
+        <span class="section-pill pill-p3">3. Experimento &amp; Aplicação Prática</span>
+        <span class="slide-num">20 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Aplicação Construída: Arquitetura do Projeto</h2>
+        <div class="grid-2" style="grid-template-columns: 1.25fr 0.75fr; align-items:center;">
+          <div class="box" style="align-items:center;padding:0.5rem;">
+            <img src="assets/arquitetura_real_projeto.svg" alt="Arquitetura Real do Projeto: Frontend SSE + Visualizador Transformer, FastAPI (:8001), LangChain Agent Loop, OpenRouter (GPT-6.1-Sol, Gemini-4-Hydrogen, Kimi-K3.1-Pro), Docker PostgreSQL + pgvector, Web Search e Storage" style="width:100%;max-height:335px;object-fit:contain;border-radius:8px;">
+            <small style="color:var(--muted);text-align:center;">Arquitetura real implementada: Frontend SSE, FastAPI + LangChain, OpenRouter (3 LLMs), Docker PostgreSQL/pgvector e Tools</small>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.65rem;">
+            <div class="box">
+              <h3>Infraestrutura Integrada</h3>
+              <ul style="font-size:0.84rem;">
+                <li><strong>FastAPI + LangChain (<code>:8001</code>):</strong> orquestra LLMs via OpenRouter com Stream SSE em tempo real.</li>
+                <li><strong>Docker Auto-Start:</strong> sobe PostgreSQL + <code>pgvector</code> (<code>:5432</code>) junto com o servidor local.</li>
+              </ul>
+            </div>
+            <div class="box box-green">
+              <h3>Ferramentas &amp; Métricas Reais</h3>
+              <ul style="font-size:0.82rem;">
+                <li><strong>SQL:</strong> compras e vendas no PostgreSQL (Docker).</li>
+                <li><strong>Web Multi-Fonte:</strong> DuckDuckGo Lite, Bing RSS, Google News, Wikipedia + leitor JSON-LD/Jina.</li>
+                <li><strong>Storage &amp; APIs:</strong> PDFs locais, geração de PDF, ViaCEP/CPF.</li>
+                <li><strong>Observabilidade:</strong> <code>_accumulate_usage()</code> mede tokens reais via <code>/api/compare-models</code>.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Arquitetura modular real em produção neste projeto</span><span>Bloco 3: Experimento</span></div>
+    </section>
+
+    <!-- SLIDE 22 -->
+    <section class="slide" data-notes="Apresentar os 3 modelos avaliados no experimento e suas arquiteturas modulares distintas.">
+      <div class="slide-top">
+        <span class="section-pill pill-p3">3. Experimento &amp; Aplicação Prática</span>
+        <span class="slide-num">22 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Arquiteturas dos 3 Modelos Avaliados na Plataforma</h2>
+        <div class="grid-3">
+          <div class="box box-green">
+            <h3>openai/gpt-6.1-sol</h3>
+            <p><strong>Decoder-Only + GQA</strong></p>
+            <ul>
+              <li>Tokenização BPE + RoPE.</li>
+              <li>Grouped-Query Attention focada em comando direto.</li>
+              <li>Emite JSON de Tool Call sem chamadas redundantes.</li>
+            </ul>
+          </div>
+          <div class="box box-accent">
+            <h3>google/gemini-4-hydrogen</h3>
+            <p><strong>Multimodal Sparse MoE</strong></p>
+            <ul>
+              <li>Espaço vetorial unificado (texto, tabelas, web).</li>
+              <li>Atenção Global Esparsa + Router Top-K.</li>
+              <li>Tende a fazer verificação cruzada entre ferramentas.</li>
+            </ul>
+          </div>
+          <div class="box" style="border-left:4px solid var(--purple);">
+            <h3>moonshotai/kimi-k3.1-pro</h3>
+            <p><strong>Long-Context MoE</strong></p>
+            <ul>
+              <li>Atenção de longo alcance (MLA) + KV-Cache.</li>
+              <li>Cadeia analítica estendida com múltiplas passagens.</li>
+              <li>Maior cobertura e detalhamento na síntese.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Arquitetura interna influencia diretamente o padrão de Tool Calling</span><span>Bloco 3: Experimento</span></div>
+    </section>
+
+    <!-- SLIDE 23 -->
+    <section class="slide" data-notes="Apresentar os dados REAIS observados no TestClient sobre POST /api/compare-models!">
+      <div class="slide-top">
+        <span class="section-pill pill-p3">3. Experimento &amp; Aplicação Prática</span>
+        <span class="slide-num">23 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Experimento Quantitativo: Consumo Real de Tokens (3 LLMs)</h2>
+        <p><strong>Consulta avaliada:</strong> <code>"Qual foi o total gasto em 2025 nas compras do restaurante?"</code> (<code>mode="database"</code>, HTTP 200 via <code>/api/compare-models</code>)</p>
+        <div class="box" style="gap:0.65rem;">
+          <div class="bar-row">
+            <div class="bar-label"><span>openai/gpt-6.1-sol (2 chamadas LLM &bull; 1 tool: <code>consultar_compras_restaurante</code>)</span><span>1.295 tokens</span></div>
+            <div class="bar-track"><div class="seg-in" style="width:34.6%"></div><div class="seg-tool" style="width:2.2%"></div><div class="seg-out" style="width:1.9%"></div></div>
+            <small style="color:var(--muted);">Entrada: 1.228 | Tool Calling: 79 | Saída: 67</small>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label"><span>google/gemini-4-hydrogen (3 chamadas LLM &bull; 2 tools: compras + vendas)</span><span>2.786 tokens</span></div>
+            <div class="bar-track"><div class="seg-in" style="width:67.4%"></div><div class="seg-tool" style="width:12.2%"></div><div class="seg-out" style="width:11.1%"></div></div>
+            <small style="color:var(--muted);">Entrada: 2.391 | Tool Calling: 434 | Saída: 395</small>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label"><span>moonshotai/kimi-k3.1-pro (3 chamadas LLM &bull; 2 tools: compras + vendas)</span><span>3.547 tokens</span></div>
+            <div class="bar-track"><div class="seg-in" style="width:86.1%"></div><div class="seg-tool" style="width:14.0%"></div><div class="seg-out" style="width:13.8%"></div></div>
+            <small style="color:var(--muted);">Entrada: 3.055 | Tool Calling: 499 | Saída: 492</small>
+          </div>
+        </div>
+        <p style="font-size:0.84rem;"><strong>Baseline (LLM isolado):</strong> incapaz de responder com precisão (0% de acurácia factual sem SQL). Com orquestração, <code>gpt-6.1-sol</code> consumiu <strong>63,5% menos tokens</strong> que <code>kimi-k3.1-pro</code> na mesma tarefa.</p>
+      </div>
+      <div class="slide-footer"><span>Métricas reais observadas no comparador do projeto</span><span>Bloco 3: Experimento</span></div>
+    </section>
+
+    <!-- SLIDE 25: PROMPT ERRADO -->
+    <section class="slide" data-notes="Mostrar na prática o que acontece quando o usuário envia um prompt vago/errado: dispersão na Self-Attention e chamadas exploratórias caras.">
+      <div class="slide-top">
+        <span class="section-pill pill-p3">3. Experimento &amp; Aplicação Prática</span>
+        <span class="slide-num">25 / 30</span>
+      </div>
+      <div class="slide-body">
+        <h2>Experimento (Parte 1): Prompt Errado / Vago</h2>
+        <div class="box box-red">
+          <h3>❌ Prompt Enviado pelo Usuário</h3>
+          <p style="font-family:'JetBrains Mono',monospace;font-size:0.95rem;font-weight:700;">"Me vê os dados de 2025 aí e faz um arquivo"</p>
+        </div>
+        <div class="grid-2">
+          <div class="box">
+            <h3>O que acontece no Transformer &amp; MoE?</h3>
+            <ul style="font-size:0.83rem;">
+              <li><strong>Ambiguidade semântica:</strong> <code>"dados"</code> não especifica se a fonte é PostgreSQL, <code>storage/</code> ou Web.</li>
+              <li><strong>Dispersão de atenção:</strong> os pesos da <em>Self-Attention</em> se espalham entre múltiplos especialistas MoE.</li>
+              <li><strong>Formato indefinido:</strong> <code>"um arquivo"</code> não define se é PDF, JSON ou texto simples.</li>
+            </ul>
+          </div>
+          <div class="box box-amber">
+            <h3>Consequência na Jornada Multiagente</h3>
+            <ol style="font-size:0.83rem;">
+              <li>Agente dispara buscas exploratórias (<code>listar_arquivos_storage</code> → <code>consultar_vendas</code> → <code>consultar_compras_restaurante</code>).</li>
+              <li>Histórico cresce a cada iteração do loop ReAct.</li>
+              <li><strong>Resultado:</strong> 4+ chamadas LLM, ~3.800–4.500 tokens gastos e risco de formato incorreto.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Ambiguidade gera tool callings exploratórias e desperdício</span><span>Bloco 3: Experimento</span></div>
+    </section>
+
+    <!-- SLIDE 26: PROMPT CORRETO + TOKEN ECONOMICS -->
+    <section class="slide" data-notes="Mostrar o prompt estruturado e fechar com a visão comparativa de Token Economics.">
+      <div class="slide-top">
+        <span class="section-pill pill-p3">3. Experimento &amp; Aplicação Prática</span>
+        <span class="slide-num">26 / 30</span>
+      </div>
+      <div class="slide-body">
+        <h2>Experimento (Parte 2): Prompt Detalhado &amp; Token Economics</h2>
+        <div class="box box-green">
+          <h3>✅ Prompt Estruturado (Verbo + Fonte + Filtro + Formato)</h3>
+          <p style="font-family:'JetBrains Mono',monospace;font-size:0.88rem;font-weight:700;">"Consulte o total de compras do restaurante em 2025 no PostgreSQL e gere um relatório em PDF por categoria."</p>
+        </div>
+        <div class="grid-2" style="grid-template-columns: 1.15fr 0.85fr;">
+          <div class="box">
+            <h3>Comparação Final — Visão de Token Economics</h3>
+            <table>
+              <thead><tr><th>Métrica</th><th>❌ Prompt Vago</th><th>✅ Prompt Detalhado</th></tr></thead>
+              <tbody>
+                <tr><td>Chamadas LLM</td><td>4+ (exploratórias)</td><td><strong>2 chamadas</strong> (direto)</td></tr>
+                <tr><td>Tool Calling</td><td>Múltiplas tentativas</td><td><strong>Exata</strong> (SQL → PDF)</td></tr>
+                <tr><td>Tokens Totais</td><td>~3.800 – 4.500</td><td><strong>1.295 tokens</strong> (GPT-6.1)</td></tr>
+                <tr><td>Economia</td><td>Baseline ineficiente</td><td><strong>~60%–70% menos custo</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="box box-accent">
+            <h3>Lição de Token Economics</h3>
+            <ul style="font-size:0.82rem;">
+              <li>Em agentes, <strong>cada iteração extra reenvia todo o histórico</strong> ($O(k \cdot n)$ tokens de entrada).</li>
+              <li>Prompt claro + escolha do modelo certo (<code>gpt-6.1-sol</code> vs <code>kimi-k3.1-pro</code>) reduz <strong>custo e latência em até 3×</strong> mantendo precisão factual.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Engenharia de Prompt = Redução direta de custo computacional e financeiro</span><span>Bloco 3: Experimento</span></div>
+    </section>
+
+    <!-- SLIDE 25 -->
+    <section class="slide" data-notes="Bloco 4 (3 min): Discutir segurança — prompt não é firewall; validação precisa estar no código.">
+      <div class="slide-top">
+        <span class="section-pill pill-p4">4. Limitações e Discussão Crítica</span>
+        <span class="slide-num">25 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Segurança &amp; Human-in-the-Loop em Produção</h2>
+        <div class="grid-2">
+          <div class="box box-red">
+            <h3>Principais Riscos</h3>
+            <ul>
+              <li><strong>Prompt Injection (direto e indireto via RAG/Web):</strong> texto recuperado pode tentar sequestrar instruções.</li>
+              <li><strong>SQL / API Injection:</strong> se argumentos não forem validados.</li>
+              <li><strong>Ações não autorizadas</strong> ou vazamento de segredos.</li>
+            </ul>
+          </div>
+          <div class="box box-green">
+            <h3>Contramedidas Obrigatórias</h3>
+            <ul>
+              <li>Consultas SQL <strong>parametrizadas</strong> e princípio do menor privilégio.</li>
+              <li>Tratar documentos RAG/Web como <strong>dados</strong>, nunca como instruções.</li>
+              <li><strong>Human-in-the-Loop (LangGraph Interrupts):</strong> aprovação humana antes de pagamentos, exclusões ou alterações críticas.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Segurança em código &gt; segurança apenas em prompt</span><span>Bloco 4: Discussão Crítica</span></div>
+    </section>
+
+    <!-- SLIDE 26 -->
+    <section class="slide" data-notes="Mostrar como medir objetivamente qualidade, fidelidade, latência e custo.">
+      <div class="slide-top">
+        <span class="section-pill pill-p4">4. Limitações e Discussão Crítica</span>
+        <span class="slide-num">26 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Avaliação &amp; Observabilidade de Aplicações LLM</h2>
+        <table>
+          <thead><tr><th>Métrica</th><th>O que Avalia</th><th>Foco na Arquitetura</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Faithfulness</strong></td><td>A resposta está 100% fundamentada nas fontes recuperadas?</td><td>Combate alucinações</td></tr>
+            <tr><td><strong>Answer Relevance</strong></td><td>A resposta atende objetivamente à pergunta do usuário?</td><td>Qualidade do LLM/Prompt</td></tr>
+            <tr><td><strong>Context Precision / Recall</strong></td><td>Os trechos recuperados são relevantes e completos?</td><td>Qualidade do RAG / Web Search</td></tr>
+            <tr><td><strong>Latência &amp; Custo</strong></td><td>Tempo total (ms) e tokens (Input + Tool Calling + Output)</td><td>Eficiência operacional</td></tr>
+          </tbody>
+        </table>
+        <div class="box">
+          <p><strong>Observabilidade completa:</strong> registrar prompt, modelo, ferramentas acionadas, payloads, erros e consumo de tokens (como implementado no <em>Trace &amp; Comparador</em> e no LangSmith).</p>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Sem medição contínua não há confiabilidade</span><span>Bloco 4: Discussão Crítica</span></div>
+    </section>
+
+    <!-- SLIDE 27 -->
+    <section class="slide" data-notes="Discussão crítica honesta sobre trade-offs: custo de múltiplas chamadas, MoE VRAM, e quando NÃO usar agentes.">
+      <div class="slide-top">
+        <span class="section-pill pill-p4">4. Limitações e Discussão Crítica</span>
+        <span class="slide-num">27 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Limitações, Custos &amp; Trade-offs Críticos</h2>
+        <div class="grid-2">
+          <div class="box box-amber">
+            <h3>Desvantagens de Agentes &amp; Tool Calling</h3>
+            <ul>
+              <li><strong>Amplificação de tokens:</strong> cada chamada de ferramenta reenvia todo o histórico (vimos <code>3.547</code> vs <code>1.295</code> tokens).</li>
+              <li><strong>Latência acumulada:</strong> múltiplas idas ao LLM + I/O de rede/banco.</li>
+              <li><strong>Loops exploratórios:</strong> prompts ambíguos induzem chamadas desnecessárias.</li>
+            </ul>
+          </div>
+          <div class="box box-amber">
+            <h3>Limitações do MoE &amp; Quando Usar</h3>
+            <ul>
+              <li><strong>MoE:</strong> exige memória para todos os especialistas e balanceamento de carga; não garante menor latência por si só.</li>
+              <li><strong>Regra prática:</strong> use <strong>Chains (LCEL)</strong> para fluxos previsíveis; reserve <strong>Agentes</strong> para investigação dinâmica e <strong>LangGraph</strong> para processos críticos.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Engenharia consciente de custo, latência e controle</span><span>Bloco 4: Discussão Crítica</span></div>
+    </section>
+
+    <!-- SLIDE 28 -->
+    <section class="slide" data-notes="Fechamento: responder à questão central e deixar as referências acadêmicas.">
+      <div class="slide-top">
+        <span class="section-pill pill-p4">Conclusão &amp; Referências</span>
+        <span class="slide-num">28 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Síntese Final &amp; Referências Bibliográficas</h2>
+        <div class="box box-accent">
+          <p><strong>Resposta à Questão Central:</strong> Um Transformer interpreta e gera linguagem; o <strong>LangChain</strong> conecta o modelo a dados (RAG/SQL), ferramentas e APIs; o <strong>LangGraph</strong> garante controle de estado e segurança; e a <strong>observabilidade de tokens</strong> permite otimizar custo e precisão.</p>
+        </div>
+        <div class="grid-2">
+          <div class="box">
+            <h3>Artigos Fundamentais</h3>
+            <ul style="font-size:0.82rem;">
+              <li>Vaswani et al. (2017) — <em>Attention Is All You Need</em>.</li>
+              <li>Devlin et al. (2018) — <em>BERT: Bidirectional Transformers</em>.</li>
+              <li>Lewis et al. (2020) — <em>Retrieval-Augmented Generation</em>.</li>
+              <li>Shazeer et al. (2017) &amp; Fedus et al. (2022) — <em>MoE / Switch Transformers</em>.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>Documentação Técnica</h3>
+            <ul style="font-size:0.82rem;">
+              <li>LangChain &amp; LangGraph Docs (<code>docs.langchain.com</code>).</li>
+              <li>LangSmith Observability (<code>docs.smith.langchain.com</code>).</li>
+              <li>pgvector (<code>github.com/pgvector/pgvector</code>).</li>
+              <li>Model Context Protocol — MCP (<code>modelcontextprotocol.io</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Obrigado! &bull; Perguntas?</span><span>28 / 28</span></div>
+    </section>
+
+  </div>
+
+  <div class="notes-drawer" id="notesDrawer">
+    <strong>Notas do Apresentador:</strong>
+    <p id="notesContent" style="margin-top:0.35rem;color:#cbd5e1;"></p>
+  </div>
+
+  <div class="controls-bar">
+    <button type="button" class="ctrl-btn" id="btnPrev">← Anterior</button>
+    <span class="ctrl-counter" id="slideCounter">1 / 28</span>
+    <button type="button" class="ctrl-btn" id="btnNext">Próximo →</button>
+    <span class="ctrl-counter" id="timerDisplay" style="border-left:1px solid #334155;padding-left:0.65rem;">⏱️ 00:00</span>
+    <button type="button" class="ctrl-btn" id="btnTimerToggle" title="Iniciar/Pausar cronômetro (T)">▶ Iniciar</button>
+    <button type="button" class="ctrl-btn" id="btnTimerReset" title="Zerar cronômetro">↺</button>
+    <button type="button" class="ctrl-btn" id="btnNotes">📝 Notas (N)</button>
+    <button type="button" class="ctrl-btn" id="btnPrint">🖨️ PDF</button>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const counter = document.getElementById('slideCounter');
+      const notesDrawer = document.getElementById('notesDrawer');
+      const notesContent = document.getElementById('notesContent');
+      const timerDisplay = document.getElementById('timerDisplay');
+      const btnTimerToggle = document.getElementById('btnTimerToggle');
+      const btnTimerReset = document.getElementById('btnTimerReset');
+      let current = 0;
+      let elapsedSeconds = 0;
+      let timerInterval = null;
+
+      function formatTime(sec) {
+        const m = String(Math.floor(sec / 60)).padStart(2, '0');
+        const s = String(sec % 60).padStart(2, '0');
+        return `⏱️ ${m}:${s}`;
+      }
+
+      function toggleTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          btnTimerToggle.textContent = '▶ Retomar';
+        } else {
+          timerInterval = setInterval(() => {
+            elapsedSeconds++;
+            timerDisplay.textContent = formatTime(elapsedSeconds);
+          }, 1000);
+          btnTimerToggle.textContent = '⏸ Pausar';
+        }
+      }
+
+      function resetTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        elapsedSeconds = 0;
+        timerDisplay.textContent = formatTime(0);
+        btnTimerToggle.textContent = '▶ Iniciar';
+      }
+
+      function showSlide(idx) {
+        current = Math.max(0, Math.min(slides.length - 1, idx));
+        slides.forEach((s, i) => {
+          s.classList.toggle('active', i === current);
+          const numEl = s.querySelector('.slide-num');
+          if (numEl) numEl.textContent = `${String(i + 1).padStart(2, '0')} / ${slides.length}`;
+        });
+        counter.textContent = `${current + 1} / ${slides.length}`;
+        notesContent.textContent = slides[current].getAttribute('data-notes') || '';
+      }
+
+      document.getElementById('btnPrev').addEventListener('click', () => showSlide(current - 1));
+      document.getElementById('btnNext').addEventListener('click', () => showSlide(current + 1));
+      document.getElementById('btnNotes').addEventListener('click', () => notesDrawer.classList.toggle('open'));
+      document.getElementById('btnPrint').addEventListener('click', () => window.print());
+      btnTimerToggle.addEventListener('click', toggleTimer);
+      btnTimerReset.addEventListener('click', resetTimer);
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); showSlide(current + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); showSlide(current - 1); }
+        else if (e.key.toLowerCase() === 'n') { notesDrawer.classList.toggle('open'); }
+        else if (e.key.toLowerCase() === 't') { toggleTimer(); }
+      });
+
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false }
+          ]
+        });
+      }
+      showSlide(0);
+    });
+  </script>
+</body>
+</html>
