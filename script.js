@@ -3683,6 +3683,50 @@ document.addEventListener('DOMContentLoaded', () => {
           progressLabel.textContent = `100% — Concluído em ${ev.duration_ms} ms`;
           aggregatorBox.style.display = "block";
           aggregatorContent.innerHTML = escapeXml(ev.final_answer || "").replace(/\n/g, "<br>");
+          const alreadyPdf = (ev.tool_executions || []).some(t => t.tool === "gerar_pdf_relatorio" && t.status === "ok");
+          const shouldOfferPdf = Boolean(ev.offer_pdf) || (/relat[oó]rio/i.test(query) && !/pdf/i.test(query) && !alreadyPdf);
+          if (shouldOfferPdf) {
+            const pdfBox = document.createElement('div');
+            pdfBox.id = 'pdfOfferBox';
+            pdfBox.style.cssText = 'margin-top:0.85rem;padding:0.75rem 0.9rem;border-radius:10px;background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.28);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.6rem;';
+            pdfBox.innerHTML = `
+              <span style="font-size:0.84rem;font-weight:700;">📄 Gostaria de gerar um PDF deste relatório?</span>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <button type="button" class="btn btn-primary" id="btnConfirmGenPdf" style="padding:0.38rem 0.85rem;font-size:0.8rem;">✅ Sim, gerar PDF</button>
+                <button type="button" class="btn btn-secondary" id="btnDismissGenPdf" style="padding:0.38rem 0.75rem;font-size:0.8rem;">Agora não</button>
+              </div>
+            `;
+            aggregatorContent.appendChild(pdfBox);
+
+            const btnYes = pdfBox.querySelector('#btnConfirmGenPdf');
+            const btnNo = pdfBox.querySelector('#btnDismissGenPdf');
+            if (btnNo) btnNo.addEventListener('click', () => pdfBox.remove());
+            if (btnYes) {
+              btnYes.addEventListener('click', async () => {
+                btnYes.disabled = true;
+                btnYes.textContent = "⏳ Gerando PDF...";
+                try {
+                  const pdfResp = await fetch(`${API_BASE}/api/generate-pdf`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      titulo: `Relatório — ${query.slice(0, 60)}`,
+                      conteudo: ev.final_answer || ""
+                    })
+                  });
+                  if (!pdfResp.ok) throw new Error(`HTTP ${pdfResp.status}`);
+                  const pdfData = await pdfResp.json();
+                  pdfBox.innerHTML = `
+                    <span style="font-size:0.84rem;font-weight:700;color:#059669;">✅ PDF gerado: <code>${escapeXml(pdfData.arquivo)}</code></span>
+                    <a href="${API_BASE}${escapeXml(pdfData.download_url)}" target="_blank" class="btn btn-primary" style="padding:0.38rem 0.85rem;font-size:0.8rem;text-decoration:none;">⬇️ Baixar PDF</a>
+                  `;
+                } catch (err) {
+                  btnYes.disabled = false;
+                  btnYes.textContent = "❌ Erro ao gerar — Tentar novamente";
+                }
+              });
+            }
+          }
           if (typeof window.recordLlmTokenRun === "function") {
             window.recordLlmTokenRun(ev);
           }
@@ -3692,6 +3736,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (ev.event === "error") {
           throw new Error(ev.detail || "Erro no stream LangChain");
         }
+      }
+
+      if (typeof window.startRealtimeLlmComparison === "function") {
+        window.startRealtimeLlmComparison(query, mode, modelName);
       }
 
       try {
@@ -3724,6 +3772,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       } catch (err) {
+        if (typeof window.recordLlmTokenError === "function") {
+          window.recordLlmTokenError(modelName, err && err.message ? err.message : "Erro no stream");
+        }
         statusBadge.className = "agent-status-pill";
         statusText.textContent = "Backend FastAPI offline ou erro";
         progressLabel.textContent = `Erro ao conectar em ${API_BASE}/api/orchestrate/stream`;
@@ -3739,6 +3790,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnRun.addEventListener('click', runRealOrchestratedSearch);
+    searchInput.addEventListener('input', () => {
+      const val = searchInput.value;
+      if (val.trim()) {
+        promptInput.value = val;
+        state.prompt = val;
+        resetJourneyForNewInput();
+        markActivePreset();
+      }
+    });
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -3752,6 +3812,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeTimer = null;
       }
       searchInput.value = "";
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
       renderLangChainFlowSkeleton();
       traceList.innerHTML = '<div class="agent-empty-state">Digite um comando e clique em <strong>Buscar Real &amp; Animar</strong>.</div>';
       foundItems.innerHTML = '<div class="agent-empty-state">As chamadas de ferramentas reais aparecerão aqui.</div>';
@@ -3772,6 +3833,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chip.classList.add('active');
         searchInput.value = chip.dataset.query || "";
         scenarioSelect.value = chip.dataset.scenario || "auto";
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
         runRealOrchestratedSearch();
       });
     }
@@ -3935,8 +3997,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!llmBarsEl || !toolBarsEl) return;
 
     const API_BASE = "http://127.0.0.1:8001";
+    const ALL_COMPARE_MODELS = [
+      "openai/gpt-6.1-sol",
+      "google/gemini-4-hydrogen",
+      "moonshotai/kimi-k3.1-pro"
+    ];
     const llmMetricsMap = new Map();
     const toolMetricsMap = new Map();
+    let activeCompareRunId = 0;
+    let activeCompareAbortController = null;
 
     function evaluatePromptQuality(text) {
       const q = (text || "").trim();
@@ -3950,41 +4019,134 @@ document.addEventListener('DOMContentLoaded', () => {
           hasSource: false,
           hasParams: false,
           goodLength: false,
-          domain: "database"
+          domain: "database",
+          writingIssues: [],
+          correctedQ: "",
+          recommendedQ: ""
         };
       }
 
-      const hasAction = /consult|busc|pesquis|leia|ler|ger|calcul|compar|investig|list|verifiq|mostr|qual|quais|quando|onde|quem|quanto|como|inform|dig|responda/.test(lower);
-      const hasSource = /banco|postgres|sql|restaurante|compras|vendas|arquivo|pdf|storage|web|internet|api|cep|cpf|tavily|jogo|time|cbf|ge|notícia|noticia|preço|preco|clima|tempo|tabela|relatório|relatorio|site|página|pagina/.test(lower);
-      const hasParams = /\b(2024|2025|2026|19\d\d|20\d\d|\d{5}-?\d{3}|\d{3}\.\d{3}|janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|categoria|pdf|json|hoje|amanhã|amanha|próximo|proximo|último|ultimo|horário|horario|data|flamengo|palmeiras|total|valor|média|media)\b/.test(lower);
-      const goodLength = q.split(/\s+/).length >= 5;
+      const hasImperative = /\b(consulte|busque|pesquise|leia|gere|calcule|compare|investigue|liste|verifique|mostre|informe|extraia|resuma|responda)\b/i.test(lower);
+      const hasWellFormedQuestion = /^(qual|quais|quando|onde|quem|quanto|quantos|como)\b/i.test(lower);
+      const hasAction = hasImperative || hasWellFormedQuestion;
+      const hasSource = /\b(banco|postgres\w*|sql|storage|arquivo\w*|pdf|web|internet|fontes?|sites?|p[áa]ginas?|api|cep|cpf|tavily|cbf|ge\.globo|uol)\b/i.test(lower);
+      const hasParams = /\b(2024|2025|2026|19\d\d|20\d\d|\d{5}-?\d{3}|\d{3}\.\d{3}|janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|categoria|pdf|json|hoje|amanh[ãa]|pr[óo]ximo|pr[óo]xima|[úu]ltimo|hor[áa]rio|data|advers[áa]rio|total|valor|m[ée]dia|q[1-4]|completa?)\b/i.test(lower);
+      const wordCount = q.split(/\s+/).filter(Boolean).length;
+      const goodLength = wordCount >= 6;
 
       let domain = "database";
-      if (/jogo|flamengo|palmeiras|web|internet|notícia|noticia|preço|preco|clima|tempo|site|página|pagina|quando|hoje/.test(lower)) {
+      if (/jogo|flamengo|palmeiras|gr[êe]mio|internacional|web|internet|not[íi]cia|pre[çc]o|clima|tempo|site|p[áa]gina|campeonato|brasileir[ãa]o|quando/.test(lower)) {
         domain = "web";
-      } else if (/arquivo|pdf|storage|ler|documento/.test(lower)) {
+      } else if (/arquivo|pdf|storage|ler|leia|documento/.test(lower)) {
         domain = "storage";
       }
 
-      let score = 15;
+      // Verifica ortografia, acentuação, capitalização, concordância e formação frasal
+      const writingIssues = [];
+      let correctedQ = q;
+
+      const fixes = [
+        [/\bproximo\b/g, "próximo", '"proximo" sem acento (correto: "próximo")'],
+        [/\bproxima\b/g, "próxima", '"proxima" sem acento (correto: "próxima")'],
+        [/\bhorario\b/g, "horário", '"horario" sem acento (correto: "horário")'],
+        [/\brelatorio\b/g, "relatório", '"relatorio" sem acento (correto: "relatório")'],
+        [/\bsera\b/g, "será", '"sera" sem acento (correto: "será")'],
+        [/\bnao\b/g, "não", '"nao" sem acento (correto: "não")'],
+        [/\bvoce\b/g, "você", '"voce" sem acento (correto: "você")'],
+        [/\binformacoes\b/g, "informações", '"informacoes" sem acento (correto: "informações")'],
+        [/\bclassificacao\b/g, "classificação", '"classificacao" sem acento (correto: "classificação")'],
+        [/\bflamengo\b/g, "Flamengo", '"flamengo" em minúscula (nome próprio: "Flamengo")'],
+        [/\bpalmeiras\b/g, "Palmeiras", '"palmeiras" em minúscula (nome próprio: "Palmeiras")'],
+        [/\bgremio\b/gi, "Grêmio", 'grafia de "Grêmio" (maiúscula e acento)'],
+        [/\binternacional\b/g, "Internacional", '"internacional" em minúscula (nome próprio: "Internacional")'],
+        [/\bbrasil\b/g, "Brasil", '"brasil" em minúscula (nome próprio: "Brasil")'],
+        [/\bpostgresql\b/g, "PostgreSQL", '"postgresql" em minúscula (correto: "PostgreSQL")'],
+        [/\bme vê\b/gi, "Consulte", 'expressão informal ("me vê")'],
+        [/\baí\b/gi, "", 'gíria desnecessária ("aí")'],
+        [/\bpra\b/gi, "para", 'abreviação informal ("pra")'],
+        [/\bvc\b/gi, "você", 'abreviação informal ("vc")'],
+        [/\bqual os\b/gi, "quais os", 'concordância ("qual os" -> "quais os")'],
+        [/\bquais o\b/gi, "qual o", 'concordância ("quais o" -> "qual o")'],
+        [/\bos dado\b/gi, "os dados", 'concordância ("os dado" -> "os dados")'],
+        [/\bas compra\b/gi, "as compras", 'concordância ("as compra" -> "as compras")']
+      ];
+
+      fixes.forEach(([rx, rep, msg]) => {
+        if (rx.test(correctedQ)) {
+          writingIssues.push(msg);
+          correctedQ = correctedQ.replace(rx, rep);
+        }
+      });
+
+      if (/\b(será|vai ser|é)\s+(quando|onde|qual)\b/i.test(correctedQ)) {
+        writingIssues.push('ordem frasal coloquial/invertida (prefira iniciar com "Quando será..." ou verbo imperativo)');
+      }
+
+      correctedQ = correctedQ.replace(/\s{2,}/g, " ").trim();
+      if (correctedQ && /^[a-zà-ÿ]/.test(correctedQ)) {
+        writingIssues.push("letra inicial minúscula");
+        correctedQ = correctedQ.charAt(0).toUpperCase() + correctedQ.slice(1);
+      }
+      if (correctedQ && !/[?.!]$/.test(correctedQ)) {
+        writingIssues.push("ausência de pontuação final (? ou .)");
+        const isQuestion = /^(qual|quais|quando|onde|quem|quanto|como)\b/i.test(correctedQ);
+        correctedQ += isQuestion ? "?" : ".";
+      }
+
+      if (!hasAction) writingIssues.push("falta verbo de ação claro (ex.: Pesquise, Consulte, Leia)");
+      if (!hasSource) writingIssues.push("falta fonte explícita (Web, PostgreSQL ou storage/)");
+      if (!hasParams) writingIssues.push("falta filtro temporal ou entidade específica (ex.: próximo, 2025, data/horário)");
+      if (!goodLength) writingIssues.push("prompt curto demais para desambiguação");
+
+      let score = 10;
       if (hasAction) score += 25;
       if (hasSource) score += 25;
       if (hasParams) score += 20;
-      if (goodLength) score += 15;
-      score = Math.min(100, score);
+      if (goodLength) score += 20;
+      score = Math.max(10, Math.min(100, score - Math.min(35, writingIssues.length * 9)));
+      if (writingIssues.length === 0) score = 100;
 
       const checks = [
         `${hasAction ? "✅" : "⚠️"} Verbo/Intenção`,
-        `${hasSource ? "✅" : "⚠️"} Domínio/Fonte`,
+        `${hasSource ? "✅" : "⚠️"} Fonte explícita`,
         `${hasParams ? "✅" : "⚠️"} Parâmetros/Filtros`,
-        `${goodLength ? "✅" : "⚠️"} Contexto suficiente`
+        `${writingIssues.length === 0 ? "✅" : "⚠️"} Grafia e concordância`
       ];
 
-      let label = "Baixa (Ambíguo)";
-      if (score >= 80) label = "Alta (Preciso & Econômico)";
-      else if (score >= 55) label = "Média (Parcial)";
+      let label = "Baixa (Ambíguo / Incompleto)";
+      if (score >= 85 && writingIssues.length === 0) label = "Alta (Preciso & Econômico)";
+      else if (score >= 55) label = "Média (Requer Ajustes)";
 
-      return { score, label, summary: checks.join("  •  "), hasAction, hasSource, hasParams, goodLength, domain };
+      // Gera sugestão bem formada e gramaticalmente correta
+      let recommendedQ = correctedQ;
+      if (writingIssues.length > 0) {
+        if (domain === "web") {
+          const teamMatch = correctedQ.match(/\b(Flamengo|Palmeiras|Grêmio|Internacional|Corinthians|São Paulo|Botafogo|Atlético|Bahia|Cruzeiro|Fluminense|Vasco)\b/i);
+          if (/jogo/i.test(correctedQ) && teamMatch) {
+            recommendedQ = `Pesquise na web em fontes esportivas confiáveis quando será o próximo jogo do ${teamMatch[1]}, informando data, horário e adversário.`;
+          } else {
+            recommendedQ = `Pesquise na web em fontes atualizadas e leia o conteúdo das páginas para responder de forma objetiva: ${correctedQ}`;
+          }
+        } else if (domain === "storage") {
+          recommendedQ = `Leia os documentos em storage/ e extraia de forma estruturada: ${correctedQ}`;
+        } else {
+          recommendedQ = `Consulte no PostgreSQL os dados completos solicitados e apresente o resultado consolidado: ${correctedQ}`;
+        }
+      }
+
+      return {
+        score,
+        label,
+        summary: checks.join("  •  "),
+        hasAction,
+        hasSource,
+        hasParams,
+        goodLength,
+        domain,
+        writingIssues,
+        correctedQ,
+        recommendedQ
+      };
     }
 
     function updatePromptCards(q, res) {
@@ -4007,39 +4169,35 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const missingParts = [];
-      if (!res.hasAction) missingParts.push("verbo/intenção clara");
-      if (!res.hasSource) missingParts.push("fonte explícita (Web, PostgreSQL ou storage/)");
-      if (!res.hasParams) missingParts.push("parâmetro temporal ou entidade específica");
+      const leftCard = document.getElementById('promptCardLeft');
+      const rightCard = document.getElementById('promptCardRight');
+      const wordCount = cleanQ.split(/\s+/).filter(Boolean).length;
+      const writingIssues = res.writingIssues || [];
 
-      if (res.score < 80) {
-        leftTag.textContent = `⚠️ Seu Prompt Atual (${res.score}% — Precisa de Refinamento)`;
+      const targetTool = res.domain === "web"
+        ? "web_search + ler_pagina_web"
+        : res.domain === "storage"
+        ? "buscar_em_arquivos / ler_arquivo"
+        : "consultar_compras_restaurante / consultar_vendas";
+
+      if (writingIssues.length > 0) {
+        if (leftCard) { leftCard.classList.remove('good'); leftCard.classList.add('bad'); }
+        leftTag.textContent = `❌ Problemas na Escrita / Formação (${writingIssues.length} ponto(s))`;
         leftQuote.textContent = `"${cleanQ}"`;
-        leftWhy.innerHTML = `<strong>Impacto Semântico:</strong> Faltam <strong>${escapeXml(missingParts.join(", ") || "detalhes de escopo")}</strong>. Sem esses sinais explícitos, a Self-Attention dispersa pesos entre múltiplos especialistas MoE, gerando chamadas extras de ferramentas e maior consumo de tokens.`;
+        leftWhy.innerHTML = `<strong>O que ajustar:</strong> ${writingIssues.map(i => escapeXml(i)).join("; ")}.<br><strong>Rota estimada:</strong> <code>${targetTool}</code>.`;
       } else {
-        leftTag.textContent = "❌ Como seria a versão vaga desta pergunta";
-        const vagueEx = res.domain === "web"
-          ? '"Vê aí quando é o jogo"'
-          : res.domain === "storage"
-          ? '"Lê os arquivos pra mim"'
-          : '"Me passa os dados do restaurante"';
-        leftQuote.textContent = vagueEx;
-        leftWhy.innerHTML = '<strong>Impacto Semântico:</strong> Sem especificar time/data, tabela ou arquivo exato, o roteador MoE precisa fazer buscas exploratórias em cascata (~2.000+ tokens extras) antes de convergir.';
+        if (leftCard) { leftCard.classList.remove('bad'); leftCard.classList.add('good'); }
+        leftTag.textContent = `✅ Escrita e Estrutura Corretas (${res.score}% — ${wordCount} palavras)`;
+        leftQuote.textContent = `"${cleanQ}"`;
+        leftWhy.innerHTML = `<strong>Leitura Semântica:</strong> Verbo de ação, fonte explícita, filtros e grafia estão alinhados.<br><strong>Rota:</strong> <code>${targetTool}</code>.`;
       }
 
-      if (res.domain === "web") {
-        rightTag.textContent = "✅ Versão Estruturada para Esta Busca Web";
-        rightQuote.textContent = `"Pesquise na web em fontes atualizadas e leia o conteúdo completo das páginas para responder de forma objetiva: ${cleanQ}"`;
-        rightWhy.innerHTML = '<strong>Impacto Semântico:</strong> A intenção explícita + escopo temporal direcionam a Atenção para <code>web_search</code> e <code>ler_pagina_web</code>, evitando consultas ao banco local e reduzindo tokens de tentativa e erro.';
-      } else if (res.domain === "storage") {
-        rightTag.textContent = "✅ Versão Estruturada para Documentos (Storage)";
-        rightQuote.textContent = `"Leia os arquivos correspondentes em storage/ e extraia exatamente o que foi pedido: ${cleanQ}"`;
-        rightWhy.innerHTML = '<strong>Impacto Semântico:</strong> Referenciar <code>storage/</code> e a saída desejada concentra os cabeçalhos de atenção em <code>ler_arquivo_storage</code>, evitando buscas web desnecessárias.';
-      } else {
-        rightTag.textContent = "✅ Versão Estruturada para Esta Consulta (PostgreSQL)";
-        rightQuote.textContent = `"Consulte no PostgreSQL os registros correspondentes e apresente o resultado consolidado: ${cleanQ}"`;
-        rightWhy.innerHTML = '<strong>Impacto Semântico:</strong> Verbo de consulta + fonte SQL explícita + filtros direcionam o <strong>Router MoE</strong> diretamente para <code>consultar_compras_restaurante</code> ou <code>consultar_vendas</code> com menor latência.';
-      }
+      if (rightCard) { rightCard.classList.remove('bad'); rightCard.classList.add('good'); }
+      rightTag.textContent = "✅ Forma Correta / Recomendada";
+      rightQuote.textContent = `"${res.recommendedQ || cleanQ}"`;
+      rightWhy.innerHTML = writingIssues.length > 0
+        ? `<strong>Impacto da Correção:</strong> Grafia, concordância e ordem frasal claras + fonte explícita direcionam a <em>Self-Attention</em> e o <strong>Router MoE</strong> diretamente para <code>${targetTool}</code>, evitando buscas exploratórias.`
+        : `<strong>Eficiência Máxima:</strong> O prompt já está bem formado e converge direto para <code>${targetTool}</code> com menor consumo de tokens.`;
     }
 
     function updatePromptAnalyzer() {
@@ -4053,11 +4211,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLlmBars() {
       const entries = Array.from(llmMetricsMap.values());
-      llmCountEl.textContent = `${entries.length} modelo(s)`;
+      const doneCount = entries.filter(e => e.status === "ok").length;
+      llmCountEl.textContent = entries.some(e => e.status === "running")
+        ? `${doneCount}/${entries.length} modelo(s)`
+        : `${entries.length} modelo(s)`;
       if (!entries.length) return;
 
       const maxTot = Math.max(1, ...entries.map(e => e.total_tokens || 1));
       llmBarsEl.innerHTML = entries.map(e => {
+        if (e.status === "running") {
+          return `
+            <div class="compare-row-card" style="opacity:0.88;">
+              <div class="compare-row-head">
+                <span>${escapeXml(e.model)}</span>
+                <span style="color:var(--accent-primary);">⏳ Executando em tempo real...</span>
+              </div>
+              <div class="compare-stacked-track">
+                <div class="seg-input" style="width:35%;opacity:0.45;"></div>
+              </div>
+              <div class="compare-row-metrics">
+                <span>🔄 Aguardando tokens e tool calls via SSE...</span>
+              </div>
+            </div>
+          `;
+        }
+        if (e.status === "error") {
+          return `
+            <div class="compare-row-card" style="border-color:rgba(220,38,38,0.35);">
+              <div class="compare-row-head">
+                <span>${escapeXml(e.model)}</span>
+                <span style="color:#dc2626;">❌ Erro na execução</span>
+              </div>
+              <div class="compare-row-metrics">
+                <span>${escapeXml(e.error || "Falha ao consultar o modelo")}</span>
+              </div>
+            </div>
+          `;
+        }
         const inpPct = Math.round(((e.input_tokens || 0) / maxTot) * 100);
         const toolPct = Math.round(((e.tool_calling_tokens || 0) / maxTot) * 100);
         const outPct = Math.max(2, Math.round(((e.output_tokens || 0) / maxTot) * 100));
@@ -4121,10 +4311,25 @@ document.addEventListener('DOMContentLoaded', () => {
       renderToolBars();
     };
 
+    function updateCompareStatusBanner() {
+      if (!statusBar) return;
+      const entries = Array.from(llmMetricsMap.values());
+      const total = entries.length;
+      if (!total) return;
+      const done = entries.filter(e => e.status === "ok" || e.status === "error").length;
+      const ok = entries.filter(e => e.status === "ok").length;
+      if (done < total) {
+        statusBar.innerHTML = `⏳ <strong>Comparando ${total} LLMs em tempo real:</strong> ${done}/${total} concluído(s)...`;
+      } else {
+        statusBar.innerHTML = `✅ <strong>Comparação em tempo real concluída (${ok}/${total} modelos)!</strong> Veja acima o consumo real de tokens por LLM e por Tool Calling.`;
+      }
+    }
+
     window.recordLlmTokenRun = function (ev) {
       const tu = ev.token_usage || {};
       llmMetricsMap.set(ev.model || "modelo", {
         model: ev.model || "modelo",
+        status: "ok",
         input_tokens: Number(tu.input_tokens || 0),
         output_tokens: Number(tu.output_tokens || 0),
         total_tokens: Number(tu.total_tokens || 0),
@@ -4133,8 +4338,129 @@ document.addEventListener('DOMContentLoaded', () => {
         duration_ms: Number(ev.duration_ms || 0),
       });
       renderLlmBars();
-      if (statusBar) {
-        statusBar.innerHTML = `Última execução registrada: <strong>${escapeXml(ev.model)}</strong> consumiu <strong>${tu.total_tokens || 0} tokens</strong> (${tu.tool_calling_tokens || 0} em Tool Calling).`;
+      updateCompareStatusBanner();
+    };
+
+    window.recordLlmTokenError = function (modelName, errorMsg) {
+      llmMetricsMap.set(modelName || "modelo", {
+        model: modelName || "modelo",
+        status: "error",
+        error: errorMsg || "Erro na execução",
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        tool_calling_tokens: 0,
+        llm_calls: 0,
+        duration_ms: 0
+      });
+      renderLlmBars();
+      updateCompareStatusBanner();
+    };
+
+    async function streamSingleModelForComparison(modelName, query, mode, runId, signal) {
+      try {
+        const resp = await fetch(`${API_BASE}/api/orchestrate/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query,
+            mode,
+            session_id: `compare-${runId}-${modelName}`,
+            model_name: modelName
+          }),
+          signal
+        });
+        if (!resp.ok || !resp.body) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (runId !== activeCompareRunId) return;
+          buffer += decoder.decode(value, { stream: true });
+          const chunks = buffer.split("\n\n");
+          buffer = chunks.pop() || "";
+          for (const chunk of chunks) {
+            const dataLine = chunk.split("\n").find(l => l.startsWith("data: "));
+            if (!dataLine) continue;
+            const ev = JSON.parse(dataLine.slice(6));
+            if (ev.event === "tool_result") {
+              window.recordToolTokenCost(ev);
+            } else if (ev.event === "output") {
+              window.recordLlmTokenRun(ev);
+            } else if (ev.event === "error") {
+              throw new Error(ev.detail || "Erro no stream");
+            }
+          }
+        }
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+        if (runId !== activeCompareRunId) return;
+        llmMetricsMap.set(modelName, {
+          model: modelName,
+          status: "error",
+          error: err ? err.message : "Erro desconhecido",
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0,
+          tool_calling_tokens: 0,
+          llm_calls: 0,
+          duration_ms: 0
+        });
+        renderLlmBars();
+        updateCompareStatusBanner();
+      }
+    }
+
+    window.startRealtimeLlmComparison = async function (query, mode, skipModel = null) {
+      const q = (query || "").trim();
+      if (!q) return;
+
+      if (activeCompareAbortController) {
+        activeCompareAbortController.abort();
+      }
+      activeCompareAbortController = new AbortController();
+      const runId = ++activeCompareRunId;
+      const signal = activeCompareAbortController.signal;
+
+      llmMetricsMap.clear();
+      toolMetricsMap.clear();
+      ALL_COMPARE_MODELS.forEach(m => {
+        llmMetricsMap.set(m, {
+          model: m,
+          status: "running",
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0,
+          tool_calling_tokens: 0,
+          llm_calls: 0,
+          duration_ms: 0
+        });
+      });
+      renderLlmBars();
+      renderToolBars();
+      updateCompareStatusBanner();
+
+      if (btnCompare) {
+        btnCompare.disabled = true;
+        btnCompare.textContent = "⏳ Comparando 3 LLMs...";
+      }
+
+      const parallelModels = ALL_COMPARE_MODELS.filter(m => m !== skipModel);
+      try {
+        await Promise.all(
+          parallelModels.map(m => streamSingleModelForComparison(m, q, mode, runId, signal))
+        );
+      } finally {
+        if (runId === activeCompareRunId && btnCompare) {
+          btnCompare.disabled = false;
+          btnCompare.textContent = "⚡ Comparar 3 LLMs (Real)";
+        }
       }
     };
 
@@ -4143,44 +4469,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = searchInput ? searchInput.value.trim() : "";
         if (!query) return;
         const mode = scenarioSelect ? scenarioSelect.value : "auto";
-
-        btnCompare.disabled = true;
-        btnCompare.textContent = "⏳ Comparando 3 LLMs...";
-        if (statusBar) statusBar.textContent = "Executando o mesmo prompt nos 3 modelos (GPT-6.1-Sol, Gemini-4-Hydrogen e Kimi-K3.1-Pro)...";
-
-        try {
-          const resp = await fetch(`${API_BASE}/api/compare-models`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query, mode })
-          });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const data = await resp.json();
-
-          (data.comparisons || []).forEach(c => {
-            if (c.status !== "ok") return;
-            const tu = c.token_usage || {};
-            llmMetricsMap.set(c.model, {
-              model: c.model,
-              input_tokens: Number(tu.input_tokens || 0),
-              output_tokens: Number(tu.output_tokens || 0),
-              total_tokens: Number(tu.total_tokens || 0),
-              tool_calling_tokens: Number(tu.tool_calling_tokens || 0),
-              llm_calls: Number(tu.llm_calls || 1),
-              duration_ms: Number(c.duration_ms || 0),
-            });
-            (c.tool_executions || []).forEach(te => window.recordToolTokenCost(te));
-          });
-
-          renderLlmBars();
-          renderToolBars();
-          if (statusBar) statusBar.innerHTML = "✅ <strong>Comparação concluída!</strong> Veja acima o consumo real de tokens por LLM e por Tool Calling.";
-        } catch (err) {
-          if (statusBar) statusBar.innerHTML = `⚠️ Erro ao comparar modelos (${escapeXml(err.message)}).`;
-        } finally {
-          btnCompare.disabled = false;
-          btnCompare.textContent = "⚡ Comparar 3 LLMs (Real)";
-        }
+        promptInput.value = query;
+        state.prompt = query;
+        resetJourneyForNewInput();
+        markActivePreset();
+        await window.startRealtimeLlmComparison(query, mode, null);
       });
     }
 

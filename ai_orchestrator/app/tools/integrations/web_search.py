@@ -95,8 +95,12 @@ def _extract_json_ld_summary(raw_html: str) -> list[str]:
     return facts
 
 
-def _rank_text_passages(plain_text: str, query: str, extra_headers: list[str], max_chars: int = 2400) -> str:
+def _rank_text_passages(plain_text: str, query: str, extra_headers: list[str], max_chars: int = 3200) -> str:
     """Rank clean text lines/paragraphs by relevance to the query for machine reading."""
+    is_table_query = bool(re.search(r"tabela|classifica[cç][aã]o|ranking|lista|completa|campeonato|rodada", query.lower()))
+    if is_table_query:
+        max_chars = max(max_chars, 5800)
+
     keywords = [
         w.lower()
         for w in re.findall(r"[\wÀ-ÿ]{3,}", query)
@@ -104,12 +108,18 @@ def _rank_text_passages(plain_text: str, query: str, extra_headers: list[str], m
     ]
     wants_date_or_time = bool(re.search(r"quando|data|hor[aá]rio|dia|horas|placar|pre[cç]o|valor|jogo", query.lower()))
 
-    scored_blocks: list[tuple[float, str]] = []
+    scored_blocks: list[tuple[float, int, str]] = []
     seen_lines: set[str] = set()
 
-    for raw_line in plain_text.splitlines():
-        line = WS_RE.sub(" ", raw_line).strip()
-        if len(line) < 30 or len(line) > 950:
+    for idx, raw_line in enumerate(plain_text.splitlines()):
+        # Remove ruído de imagens markdown do Jina Reader (ex: [![Image 41: Team](url)]) mantendo o texto alt
+        cleaned_line = re.sub(r"\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\)", "", raw_line)
+        cleaned_line = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", cleaned_line)
+        line = WS_RE.sub(" ", cleaned_line).strip()
+        is_table_row = ("|" in line and bool(re.search(r"\d", line))) or bool(re.match(r"^\d{1,2}[º°.\s]+\w+", line))
+
+        min_len = 8 if is_table_row else 30
+        if len(line) < min_len or len(line) > 950:
             continue
         if line in seen_lines:
             continue
@@ -121,21 +131,28 @@ def _rank_text_passages(plain_text: str, query: str, extra_headers: list[str], m
 
         kw_hits = sum(1 for kw in keywords if kw in lower)
         score = float(kw_hits * 3.0)
+        if is_table_row:
+            score += 6.0 if is_table_query else 3.5
         if wants_date_or_time and re.search(r"\b\d{1,2}/\d{1,2}\b|\b\d{1,2}h\d{0,2}\b|\b\d{1,2}:\d{2}\b|\b(?:segunda|terça|quarta|quinta|sexta|sábado|domingo)\b", lower):
             score += 4.5
         if 55 <= len(line) <= 450:
             score += 1.0
 
-        if keywords and kw_hits == 0 and score < 4.0:
+        if keywords and kw_hits == 0 and score < 4.0 and not is_table_row:
             continue
-        scored_blocks.append((score, line))
+        scored_blocks.append((score, idx, line))
 
-    scored_blocks.sort(key=lambda x: x[0], reverse=True)
+    if is_table_query:
+        # Preserva a ordem original das linhas da tabela para manter 1º..20º lugar intactos
+        top_blocks = sorted(scored_blocks, key=lambda x: x[0], reverse=True)[:48]
+        top_blocks.sort(key=lambda x: x[1])
+    else:
+        top_blocks = sorted(scored_blocks, key=lambda x: x[0], reverse=True)[:16]
 
     passages: list[str] = [h[:500] for h in extra_headers if h.strip()]
     total_len = sum(len(p) for p in passages)
 
-    for _, block in scored_blocks[:12]:
+    for _, _, block in top_blocks:
         if total_len + len(block) > max_chars:
             break
         passages.append(block)
@@ -149,7 +166,7 @@ def _rank_text_passages(plain_text: str, query: str, extra_headers: list[str], m
     return "\n".join(passages).strip()
 
 
-def _extract_relevant_passages(raw_html: str, query: str, max_chars: int = 2400) -> str:
+def _extract_relevant_passages(raw_html: str, query: str, max_chars: int = 3200) -> str:
     """Extract structured JSON-LD, meta tags, main/article body, and rank passages."""
     headers_info = _extract_json_ld_summary(raw_html)
     meta_matches = META_DESC_RE.findall(raw_html[:35000])
@@ -166,7 +183,8 @@ def _extract_relevant_passages(raw_html: str, query: str, max_chars: int = 2400)
     target_html = article_match.group(2) if article_match else raw_html
 
     cleaned = BLOCK_STRIP_RE.sub("\n", target_html)
-    cleaned = re.sub(r"</?(?:p|div|li|tr|td|th|h[1-6]|article|section|br)[^>]*>", "\n", cleaned, flags=re.I)
+    cleaned = re.sub(r"</?(?:td|th)[^>]*>", " | ", cleaned, flags=re.I)
+    cleaned = re.sub(r"</?(?:p|div|li|tr|h[1-6]|article|section|br)[^>]*>", "\n", cleaned, flags=re.I)
     text = HTML_TAG_RE.sub(" ", cleaned)
     text = html_lib.unescape(text)
 
@@ -271,7 +289,10 @@ def web_search(query: str, max_results: int = 5) -> dict:
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
     }
-    clean_query = re.sub(r"[?!]+", "", query).strip()
+    clean_query = re.sub(r"[?!\"']+", "", query).strip()
+    clean_query = re.sub(r"\bsite:\S+", "", clean_query, flags=re.I).strip()
+    clean_query = re.sub(r"\bOR\b", " ", clean_query).strip()
+    clean_query = WS_RE.sub(" ", clean_query) or query.strip()
     encoded_q = urllib.parse.quote(clean_query)
     candidates: list[dict] = []
 
@@ -309,7 +330,7 @@ def web_search(query: str, max_results: int = 5) -> dict:
                             url = qs["uddg"][0]
                     title = WS_RE.sub(" ", HTML_TAG_RE.sub(" ", html_lib.unescape(raw_title))).strip()
                     snip = WS_RE.sub(" ", HTML_TAG_RE.sub(" ", html_lib.unescape(snippets[idx]))).strip() if idx < len(snippets) else ""
-                    if url.startswith("http"):
+                    if url.startswith("http") and "duckduckgo.com/y.js" not in url and "bing.com/aclick" not in url:
                         candidates.append({
                             "titulo": title,
                             "url": url,

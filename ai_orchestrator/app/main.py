@@ -235,3 +235,30 @@ def compare_models(payload: CompareModelsRequest):
             })
 
     return {"query": payload.query, "mode": payload.mode, "comparisons": results}
+
+
+class GeneratePdfRequest(BaseModel):
+    titulo: str = "Relatório Gerado"
+    conteudo: str
+    nome_arquivo: str | None = None
+
+
+@app.post("/api/generate-pdf")
+def generate_pdf_endpoint(payload: GeneratePdfRequest):
+    if not payload.conteudo.strip():
+        raise HTTPException(status_code=400, detail="O conteúdo do relatório não pode estar vazio.")
+    from app.tools.processes.reports import gerar_pdf_relatorio
+    fname = payload.nome_arquivo or f"relatorio_{int(time.time())}.pdf"
+    res = gerar_pdf_relatorio.invoke({
+        "titulo": payload.titulo[:80],
+        "conteudo": payload.conteudo,
+        "nome_arquivo": fname,
+    })
+    arquivo = res.get("arquivo") or fname
+    download_name = arquivo.replace("\\", "/").split("/")[-1]
+    return {
+        "status": "ok",
+        "arquivo": arquivo,
+        "download_url": f"/api/storage/download/{download_name}",
+        "detalhes": res,
+    }

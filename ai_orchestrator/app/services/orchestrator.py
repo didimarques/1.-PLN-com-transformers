@@ -1,6 +1,7 @@
 """LangChain Architecture Flow Orchestrator with real tool-calling and memory."""
 
 import json
+import re
 import time
 from datetime import datetime
 from typing import Any
@@ -18,7 +19,6 @@ from app.tools.database.postgres import (
 from app.tools.files.reader import ler_arquivo
 from app.tools.files.search import buscar_em_arquivos
 from app.tools.integrations.rest_api import consultar_api, consultar_cep, consultar_cliente
-from app.tools.integrations.web_search import web_search
 from app.tools.integrations.web_search import ler_pagina_web, web_search
 from app.tools.processes.reports import (
     calcular_expressao,
@@ -168,7 +168,7 @@ def stream_langchain_flow(
 
     # 3. LLM / Chat Model + Tool Binding (escopo estrito ao modo selecionado)
     bound_tools = _select_tools_for_mode(mode)
-    llm = get_model(model_name=model_name, temperature=0, max_tokens=1024)
+    llm = get_model(model_name=model_name, temperature=0, max_tokens=2500)
     llm_with_tools = llm.bind_tools(bound_tools)
 
     yield emit_stage(
@@ -216,22 +216,41 @@ def stream_langchain_flow(
         if is_tool_decision:
             usage_totals["tool_calling_tokens"] += outp
 
-    # 5. Agent & Tools Loop
-    for iteration in range(8):
+    def _extract_text_content(content: Any) -> str:
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict) and item.get("text"):
+                    parts.append(str(item["text"]))
+            return "\n".join(parts).strip()
+        return str(content or "").strip()
+
+    # 5. Agent & Tools Loop (máximo 4 iterações para evitar loops longos de buscas repetidas)
+    seen_calls: set[str] = set()
+    for iteration in range(4):
         ai_msg = llm_with_tools.invoke(messages)
         messages.append(ai_msg)
 
         tool_calls = getattr(ai_msg, "tool_calls", None) or []
         _accumulate_usage(ai_msg, is_tool_decision=bool(tool_calls))
         if not tool_calls:
-            final_text = ai_msg.content if isinstance(ai_msg.content, str) else str(ai_msg.content)
+            final_text = _extract_text_content(ai_msg.content)
             break
 
-        for tc in tool_calls:
+        for tc in tool_calls[:4]:
             t_name = tc.get("name", "")
             t_args = tc.get("args", {})
             t_id = tc.get("id", f"call_{iteration}")
             t_cat = TOOL_CATEGORY_MAP.get(t_name, "other")
+            call_sig = f"{t_name}:{json.dumps(t_args, sort_keys=True, ensure_ascii=False)}"
+            if call_sig in seen_calls:
+                messages.append(ToolMessage(content="Chamada idêntica já executada anteriormente. Use os dados já coletados.", tool_call_id=t_id))
+                continue
+            seen_calls.add(call_sig)
 
             yield {
                 "event": "tool_start",
@@ -267,17 +286,33 @@ def stream_langchain_flow(
                 "result": result_obj,
                 "status": status,
                 "duration_ms": elapsed_ms,
-                "payload_tokens_est": max(1, round((len(json.dumps(t_args, ensure_ascii=False)) + len(result_str[:6000])) / 4)),
+                "payload_tokens_est": max(1, round((len(json.dumps(t_args, ensure_ascii=False)) + len(result_str[:12000])) / 4)),
             }
             usage_totals["tool_calling_tokens"] += exec_obj["payload_tokens_est"]
             tool_executions.append(exec_obj)
             yield {"event": "tool_result", **exec_obj}
 
-            messages.append(ToolMessage(content=result_str[:6000], tool_call_id=t_id))
+            messages.append(ToolMessage(content=result_str[:12000], tool_call_id=t_id))
     else:
-        final_msg = llm_with_tools.invoke(messages)
+        # Força síntese final SEM tools vinculadas (evita retorno vazio quando atinge o limite de iterações)
+        synthesis_messages = list(messages) + [
+            HumanMessage(
+                content="Com base exclusivamente nos dados já retornados pelas ferramentas acima, formule agora a resposta final clara, objetiva e em português."
+            )
+        ]
+        final_msg = llm.invoke(synthesis_messages)
         _accumulate_usage(final_msg, is_tool_decision=False)
-        final_text = final_msg.content if isinstance(final_msg.content, str) else str(final_msg.content)
+        final_text = _extract_text_content(final_msg.content)
+
+    if not final_text.strip():
+        synthesis_messages = list(messages) + [
+            HumanMessage(
+                content="Resuma objetivamente os dados obtidos pelas ferramentas acima para responder à pergunta do usuário."
+            )
+        ]
+        fallback_msg = llm.invoke(synthesis_messages)
+        _accumulate_usage(fallback_msg, is_tool_decision=False)
+        final_text = _extract_text_content(fallback_msg.content)
 
     # Garantia determinística apenas se o usuário pediu PDF e a ferramenta estiver no escopo
     wants_pdf = "pdf" in query.lower() and gerar_pdf_relatorio in bound_tools
@@ -314,6 +349,10 @@ def stream_langchain_flow(
         yield {"event": "tool_result", **exec_obj}
         if pdf_res.get("arquivo") and pdf_res["arquivo"] not in final_text:
             final_text += f"\n\n📄 PDF gerado com sucesso: `{pdf_res['arquivo']}`"
+
+    mentions_report = bool(re.search(r"relat[oó]rio", query.lower())) and not wants_pdf and not pdf_already_called
+    if mentions_report and "gostaria" not in final_text.lower():
+        final_text += "\n\n---\n📄 **Você mencionou gerar um relatório. Gostaria que eu gere um PDF deste resultado?**"
 
     yield emit_stage(
         "agent_tools",
@@ -352,6 +391,7 @@ def stream_langchain_flow(
         "session_id": session_id,
         "duration_ms": total_ms,
         "token_usage": usage_totals,
+        "offer_pdf": mentions_report,
         "flow_steps": flow_steps,
         "tool_executions": tool_executions,
         "memory_count": len(_memory_store.get_messages(session_id)),

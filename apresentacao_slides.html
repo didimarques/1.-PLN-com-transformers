@@ -44,22 +44,23 @@
 
     .deck-stage {
       width: 100%;
-      max-width: 1180px;
-      aspect-ratio: 16 / 9;
+      max-width: 1200px;
       position: relative;
     }
 
     .slide {
       display: none;
       width: 100%;
-      height: 100%;
+      min-height: min(675px, calc(100vh - 5.5rem));
+      height: auto;
       background: var(--slide-bg);
       border-radius: 16px;
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-      padding: 2.2rem 2.7rem 2.6rem;
+      padding: 1.5rem 2.25rem 1.35rem;
       flex-direction: column;
       justify-content: space-between;
-      overflow: hidden;
+      gap: 0.5rem;
+      overflow-x: hidden;
       position: relative;
     }
 
@@ -423,11 +424,20 @@
           <strong style="color:#a5b4fc;">Questão Central:</strong>
           <p style="margin-top:0.25rem;">Como integrar modelos Transformers a documentos, bancos de dados, ferramentas externas e fluxos de processamento para construir aplicações inteligentes controladas?</p>
         </div>
-        <div class="grid-2" style="grid-template-columns: repeat(4, 1fr); gap:0.7rem;">
-          <div class="cover-card"><strong>1. Problema</strong><br><small>Slides 2–7</small></div>
-          <div class="cover-card"><strong>2. Fundamentos</strong><br><small>Slides 8–21</small></div>
-          <div class="cover-card"><strong>3. Experimento</strong><br><small>Slides 22–26</small></div>
-          <div class="cover-card"><strong>4. Limitações</strong><br><small>Slides 27–30</small></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:0.4rem;padding-top:0.8rem;border-top:1px solid rgba(255,255,255,0.18);">
+          <div>
+            <div style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:#a5b4fc;font-weight:700;">APRESENTAÇÃO</div>
+            <div style="font-size:0.95rem;font-weight:600;color:#f8fafc;margin-top:0.2rem;">Adriano Marques Mendes</div>
+          </div>
+          <div>
+            <div style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:#a5b4fc;font-weight:700;">DISCIPLINA</div>
+            <div style="font-size:0.95rem;font-weight:600;color:#f8fafc;margin-top:0.2rem;">Redes Recorrentes e Transformers</div>
+            <div style="font-size:0.84rem;color:#cbd5e1;margin-top:0.1rem;">Profª Karla Figueiredo</div>
+          </div>
+          <div>
+            <div style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:#a5b4fc;font-weight:700;">DATA</div>
+            <div style="font-size:0.95rem;font-weight:600;color:#f8fafc;margin-top:0.2rem;">25 de novembro de 2026</div>
+          </div>
         </div>
       </div>
       <div class="slide-footer">
@@ -436,23 +446,56 @@
       </div>
     </section>
 
+    <!-- SLIDE 2: AGENDA -->
+    <section class="slide" data-notes="Apresentar a agenda completa dos tópicos que serão abordados ao longo da apresentação.">
+      <div class="slide-top">
+        <span class="section-pill">Agenda da Apresentação</span>
+        <span class="slide-num">02 / 31</span>
+      </div>
+      <div class="slide-body">
+        <h2>Agenda</h2>
+        <div class="box box-accent" style="padding:1.1rem 1.5rem;">
+          <ol style="font-size:1.02rem;gap:0.62rem;font-weight:600;">
+            <li>Processamento de Linguagem Natural (PLN), Tokens e Embeddings</li>
+            <li>Limitações de LLMs Isolados e Problemática do Projeto</li>
+            <li>Arquitetura Transformer, Self-Attention e Mixture of Experts (MoE)</li>
+            <li>LangChain, LCEL, RAG e Bancos Vetoriais (PostgreSQL + pgvector)</li>
+            <li>Tools, Tool Calling, Agentes ReAct, LangGraph e MCP</li>
+            <li>Experimento Prático: AI Tool Orchestrator, 3 LLMs e Token Economics</li>
+            <li>Segurança, Avaliação, Limitações e Referências Bibliográficas</li>
+          </ol>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Visão geral estruturada da apresentação</span><span>Agenda</span></div>
+    </section>
+
     <!-- SLIDE 2 -->
     <section class="slide" data-notes="Bloco 1 (3 min): Contextualizar rapidamente o que é PLN e a evolução até LLMs, destacando que o salto de capacidade trouxe novos desafios operacionais.">
       <div class="slide-top">
         <span class="section-pill pill-p1">1. Problema e Motivação</span>
         <span class="slide-num">02 / 28</span>
       </div>
-      <div class="slide-body">
+      <div class="slide-body" style="justify-content:space-between;gap:0.5rem;">
         <h2>O que é Processamento de Linguagem Natural (PLN)?</h2>
-        <p>Área da IA que desenvolve métodos computacionais para <strong>interpretar, representar, processar e gerar</strong> linguagem humana (classificação, extração, resumo, Q&amp;A, agentes e busca semântica).</p>
-        <table>
-          <thead><tr><th>Abordagem</th><th>Característica Principal</th><th>Limitação</th></tr></thead>
+        <div class="grid-2" style="gap:0.85rem;">
+          <div class="box box-accent" style="padding:0.65rem 0.85rem;gap:0.25rem;">
+            <h3>Definição &amp; Níveis de Análise Linguística</h3>
+            <p style="font-size:0.79rem;">Interseção entre <strong>Linguística Computacional</strong> e <strong>Aprendizado de Máquina</strong> voltada a interpretar, representar e gerar linguagem humana, resolvendo ambiguidades em 4 níveis: <strong>morfológico/léxico</strong>, <strong>sintático</strong>, <strong>semântico</strong> e <strong>pragmático</strong> (Jurafsky &amp; Martin, 2024).</p>
+          </div>
+          <div class="box" style="padding:0.65rem 0.85rem;gap:0.25rem;">
+            <h3>Modelagem Probabilística da Linguagem</h3>
+            <div class="math-box" style="font-size:0.8rem;padding:0.3rem 0.5rem;">$$P(w_1, \dots, w_n) = \prod_{t=1}^{n} P(w_t \mid w_{&lt;t})$$</div>
+            <p style="font-size:0.77rem;">De modelos estatísticos esparsos ($n$-gramas; Manning &amp; Schütze, 1999) a modelos neurais distribuídos em espaço contínuo (Bengio et al., 2003).</p>
+          </div>
+        </div>
+        <table style="font-size:0.78rem;">
+          <thead><tr><th>Paradigma</th><th>Mecanismo Central</th><th>Limitação Superada / Atual</th></tr></thead>
           <tbody>
-            <tr><td><strong>Baseada em Regras</strong></td><td>Regras linguísticas e padrões explícitos</td><td>Baixa flexibilidade para variações</td></tr>
-            <tr><td><strong>Machine Learning</strong></td><td>Aprende padrões estatísticos de dados</td><td>Depende de engenharia de atributos</td></tr>
-            <tr><td><strong>Deep Learning</strong></td><td>Redes neurais aprendem representações</td><td>Alto custo computacional e dados</td></tr>
-            <tr><td><strong>Transformers</strong></td><td>Atenção contextual e paralelismo</td><td>Custo de inferência e janela finita</td></tr>
-            <tr><td><strong>LLMs</strong></td><td>Modelos de linguagem em larga escala</td><td>Alucinações e dados desatualizados</td></tr>
+            <tr><td><strong>Regras Simbólicas</strong></td><td>Gramáticas formais e padrões explícitos</td><td>Baixa cobertura e fragilidade a ambiguidade</td></tr>
+            <tr><td><strong>ML Estatístico</strong></td><td>$n$-gramas, HMMs, SVM e TF-IDF</td><td>Esparsidade e dependência de <em>features</em> manuais</td></tr>
+            <tr><td><strong>Deep Learning</strong></td><td>Embeddings contínuos + RNN / LSTM</td><td>Processamento sequencial e custo de treino</td></tr>
+            <tr><td><strong>Transformers</strong></td><td>Self-Attention contextual e paralelismo</td><td>Complexidade $O(n^2)$ e janela finita</td></tr>
+            <tr><td><strong>LLMs</strong></td><td>Pré-treino em larga escala + alinhamento</td><td>Alucinações e ausência de dados vivos sem ferramentas</td></tr>
           </tbody>
         </table>
       </div>
@@ -465,25 +508,27 @@
         <span class="section-pill pill-p1">1. Problema e Motivação</span>
         <span class="slide-num">03 / 30</span>
       </div>
-      <div class="slide-body">
-        <h2>Tokens: Como o Texto é Fatiado Antes da IA</h2>
-        <div class="box" style="align-items:center;padding:0.45rem 0.65rem;">
-          <img src="assets/tokens_embeddings_fluxo.png" alt="Visualização de Tokens, IDs discretos, Vetores de Embedding, Positional Encoding PE(pos) e arcos de Atenção no sistema" style="width:100%;max-height:190px;object-fit:contain;border-radius:8px;">
-          <small style="color:var(--muted);text-align:center;">Cada palavra/subpalavra recebe um ID discreto, um vetor de Embedding (barras coloridas) e sua posição <code>PE(pos)</code>.</small>
+      <div class="slide-body" style="justify-content:space-between;gap:0.45rem;">
+        <h2>Tokens: Como o Texto é Fatiado e Indexado Antes da IA</h2>
+        <div class="box" style="align-items:center;padding:0.35rem 0.6rem;">
+          <img src="assets/tokens_embeddings_fluxo.png" alt="Visualização de Tokens, IDs discretos, Vetores de Embedding, Positional Encoding PE(pos) e arcos de Atenção no sistema" style="width:100%;max-height:135px;object-fit:contain;border-radius:8px;">
+          <small style="color:var(--muted);text-align:center;">Cada palavra/subpalavra recebe um ID discreto ($t_i$), um vetor de Embedding (barras coloridas) e sua posição <code>PE(pos)</code>.</small>
         </div>
-        <div class="grid-2">
-          <div class="box box-accent">
-            <h3>Como Funciona a Tokenização (BPE / SentencePiece)</h3>
-            <ul style="font-size:0.8rem;">
-              <li><strong>Subpalavras &amp; Vocabulário $|V|$:</strong> palavras frequentes viram 1 token (<code>"Busque"</code>, <code>"arquivos"</code>); palavras raras são quebradas em prefixos/sufixos.</li>
-              <li><strong>IDs &amp; Idioma:</strong> espaços e acentos geram IDs (<code>ID 32110</code>); português consome ~1,2×–1,4× mais tokens que inglês.</li>
-            </ul>
+        <div class="grid-2" style="gap:0.8rem;">
+          <div class="box box-accent" style="padding:0.6rem 0.85rem;gap:0.22rem;">
+            <h3>1. Como Funciona Internamente (Algoritmo BPE)</h3>
+            <ol style="font-size:0.76rem;gap:0.2rem;">
+              <li><strong>Base UTF-8 / Caracteres:</strong> todo caractere, acento ou pontuação vira unidade básica, eliminando erro de palavra desconhecida (<em>OOV</em>).</li>
+              <li><strong>Fusões Iterativas (Sennrich et al., 2016):</strong> pares adjacentes frequentes são fundidos até atingir o vocabulário $|V|$ (50k–128k), gerando subpalavras (<code>"fatur" + "##amento"</code>).</li>
+              <li><strong>Indexação Discreta:</strong> cada subpalavra é convertida em um inteiro único $t_i \in \{0, \dots, |V|-1\}$ (ex.: <code>"Busque" → ID 32110</code>).</li>
+            </ol>
           </div>
-          <div class="box box-green">
-            <h3>Impacto Direto na Aplicação</h3>
-            <ul style="font-size:0.8rem;">
-              <li><strong>Custo financeiro:</strong> APIs cobram por <em>input + tool calling + output tokens</em>.</li>
-              <li><strong>Janela de contexto &amp; Latência:</strong> define o limite máximo $n$ na memória e o tempo de geração autoregressiva.</li>
+          <div class="box box-green" style="padding:0.6rem 0.85rem;gap:0.22rem;">
+            <h3>2. Regras Práticas &amp; Impacto Computacional</h3>
+            <ul style="font-size:0.76rem;gap:0.2rem;">
+              <li><strong>Token ≠ Palavra:</strong> palavras comuns viram 1 token; termos raros geram 2–4 tokens; espaços, pontuação e dígitos também contam.</li>
+              <li><strong>Sem Métrica nos IDs:</strong> <code>32110</code> e <code>31707</code> são apenas rótulos; o significado só surge no <em>Embedding</em>.</li>
+              <li><strong>Custo &amp; Atenção $O(n^2)$:</strong> cobrança, janela de contexto e <em>KV-Cache</em> dependem de $n$ (português usa ~1,2×–1,4× mais tokens que inglês).</li>
             </ul>
           </div>
         </div>
@@ -497,26 +542,28 @@
         <span class="section-pill pill-p1">1. Problema e Motivação</span>
         <span class="slide-num">04 / 30</span>
       </div>
-      <div class="slide-body">
+      <div class="slide-body" style="justify-content:space-between;gap:0.55rem;">
         <h2>Embeddings: Do ID Discreto ao Espaço Semântico Contínuo</h2>
-        <p style="font-size:0.88rem;">Um ID numérico como <code>9841</code> não carrega significado nem proximidade. O <strong>Embedding</strong> converte cada token em um vetor denso contínuo em $\mathbb{R}^d$ ($d = 768 \dots 6144$) que captura propriedades semânticas e sintáticas.</p>
-        <div class="grid-2">
-          <div class="box">
-            <h3>Mapeamento &amp; Codificação Posicional</h3>
-            <div class="math-box" style="font-size:0.84rem;">
+        <div class="box" style="padding:0.5rem 0.85rem;background:#eef2ff;border-color:#c7d2fe;">
+          <p style="font-size:0.81rem;"><strong>Hipótese Distribucional (Harris, 1954; Firth, 1957):</strong> palavras em contextos semelhantes compartilham significado. Diferente de vetores <em>one-hot</em> ($\in \{0,1\}^{|V|}$, esparsos e ortogonais entre si), o <strong>Embedding</strong> projeta cada token em um espaço denso contínuo $\mathbb{R}^d$ ($d = 768 \dots 6144$).</p>
+        </div>
+        <div class="grid-2" style="gap:0.85rem;">
+          <div class="box" style="padding:0.65rem 0.85rem;gap:0.3rem;">
+            <h3>Mapeamento Matricial &amp; Posição ($E + PE$)</h3>
+            <div class="math-box" style="font-size:0.82rem;padding:0.4rem 0.6rem;">
               $$e_i = W_E[t_i] \in \mathbb{R}^{d}, \qquad x_i = e_i + p_i, \qquad X \in \mathbb{R}^{n \times d}$$
             </div>
-            <ul style="font-size:0.81rem;">
-              <li><strong>Matriz de Lookup ($W_E \in \mathbb{R}^{|V| \times d}$):</strong> aprendida no treino; cada linha é a assinatura vetorial de um token.</li>
-              <li><strong>Positional Encoding ($p_i$ / RoPE):</strong> injeta a ordem da palavra para distinguir <em>"A comprou B"</em> de <em>"B comprou A"</em>.</li>
+            <ul style="font-size:0.78rem;gap:0.22rem;">
+              <li><strong>Matriz de Lookup ($W_E \in \mathbb{R}^{|V| \times d}$):</strong> aprendida por gradiente; comprime $|V| \approx 10^5$ para $d \approx 10^3$ dimensões semânticas latentes.</li>
+              <li><strong>Codificação Posicional ($p_i$ / RoPE):</strong> injeta ordem sequencial absoluta ou rotacional, distinguindo <em>"A comprou B"</em> de <em>"B comprou A"</em>.</li>
             </ul>
           </div>
-          <div class="box box-accent">
-            <h3>Geometria Semântica &amp; Uso Duplo no Sistema</h3>
-            <ul style="font-size:0.81rem;">
-              <li><strong>Proximidade por significado:</strong> vetores de <code>"faturamento"</code>, <code>"vendas"</code> e <code>"receita"</code> apontam em direções próximas ($\text{sim}_{\cos} \to 1$).</li>
-              <li><strong>1. Nos Transformers:</strong> $X$ alimenta as camadas de <em>Self-Attention</em> ($Q, K, V$) para contextualizar cada palavra.</li>
-              <li><strong>2. No RAG / pgvector:</strong> embeddings de frases permitem busca semântica mesmo sem palavras idênticas.</li>
+          <div class="box box-accent" style="padding:0.65rem 0.85rem;gap:0.3rem;">
+            <h3>Geometria Semântica &amp; Papel na Arquitetura</h3>
+            <ul style="font-size:0.78rem;gap:0.25rem;">
+              <li><strong>Similaridade Angular:</strong> termos semanticamente próximos (<code>"faturamento"</code>, <code>"vendas"</code>, <code>"receita"</code>) apontam em direções alinhadas ($\text{sim}_{\cos} \to 1$), permitindo operações algébricas de sentido (Mikolov et al., 2013).</li>
+              <li><strong>1. Nos Transformers:</strong> $X$ entra nas camadas de <em>Self-Attention</em> ($Q, K, V$), onde os vetores passam a ser <strong>contextualizados</strong> pela frase inteira.</li>
+              <li><strong>2. No RAG / <code>pgvector</code>:</strong> embeddings de trechos permitem busca semântica por significado mesmo sem palavras idênticas.</li>
             </ul>
           </div>
         </div>
@@ -557,31 +604,35 @@
       <div class="slide-footer"><span>Motivação: por que um chat puro não basta em produção</span><span>Bloco 1: Problema</span></div>
     </section>
 
-    <!-- SLIDE 4 -->
-    <section class="slide" data-notes="Usar exemplos concretos do nosso sistema: total de compras em 2025 no PostgreSQL e próximo jogo do Flamengo na Web.">
+    <!-- SLIDE 7: PROBLEMATICA DO PROJETO -->
+    <section class="slide" data-notes="Apresentar a dupla problemática do projeto: isolamento do LLM puro + opacidade/custo na orquestração de ferramentas, fechando com a questão-problema central.">
       <div class="slide-top">
         <span class="section-pill pill-p1">1. Problema e Motivação</span>
-        <span class="slide-num">04 / 28</span>
+        <span class="slide-num">07 / 31</span>
       </div>
-      <div class="slide-body">
-        <h2>Problema Prático: Dados Privados &amp; Tempo Real</h2>
-        <div class="grid-2">
-          <div class="box box-accent">
-            <h3>Caso 1 — Banco Corporativo (PostgreSQL)</h3>
-            <p><em>"Qual foi o total gasto em 2025 nas compras do restaurante por categoria?"</em></p>
-            <p>Um LLM isolado <strong>não conhece</strong> suas tabelas. Sem conexão SQL controlada, ele recusa ou inventa valores.</p>
+      <div class="slide-body" style="justify-content:space-between;gap:0.65rem;">
+        <h2>Problemática do Projeto: Isolamento &amp; Opacidade na Orquestração</h2>
+        <div class="grid-2" style="gap:0.9rem;">
+          <div class="box box-red" style="padding:0.75rem 0.9rem;gap:0.3rem;">
+            <h3>1. Isolamento Informacional &amp; Operacional</h3>
+            <ul style="font-size:0.8rem;gap:0.25rem;">
+              <li><strong>Conhecimento estático:</strong> um LLM isolado não acessa bancos SQL (PostgreSQL), documentos locais (<code>storage/</code>) nem páginas web em tempo real.</li>
+              <li><strong>Sem execução determinística:</strong> não realiza cálculos exatos nem gera arquivos/PDFs; no baseline do projeto, obteve <strong>0% de acurácia factual</strong> em consultas de 2025.</li>
+            </ul>
           </div>
-          <div class="box box-accent">
-            <h3>Caso 2 — Informação Atualizada (Web)</h3>
-            <p><em>"Quando será o próximo jogo do Flamengo?"</em></p>
-            <p>Exige buscar fontes diversas atualizadas e <strong>ler o conteúdo real das páginas</strong>, não apenas treinar o modelo.</p>
+          <div class="box box-amber" style="padding:0.75rem 0.9rem;gap:0.3rem;">
+            <h3>2. Opacidade &amp; Custo (Token Economics)</h3>
+            <ul style="font-size:0.8rem;gap:0.25rem;">
+              <li><strong>Caixa-preta agêntica:</strong> ao conectar ferramentas, raramente fica visível como a <em>Self-Attention</em> e o roteador MoE escolhem cada ação.</li>
+              <li><strong>Explosão de tokens:</strong> prompts vagos e excesso de tools geram chamadas exploratórias caras (<strong>6.703</strong> tokens vs. <strong>1.439</strong> tokens otimizados).</li>
+            </ul>
           </div>
         </div>
-        <div class="box box-amber">
-          <p><strong>Conclusão:</strong> A inteligência da aplicação não reside apenas nos pesos do Transformer, mas na <strong>arquitetura que conecta o modelo ao mundo externo</strong>.</p>
+        <div class="box box-accent" style="padding:0.65rem 0.95rem;background:#eef2ff;border-color:#c7d2fe;">
+          <p style="font-size:0.85rem;line-height:1.45;"><strong>Questão Central:</strong> Como integrar modelos Transformers a <strong>documentos</strong>, <strong>bancos de dados</strong>, <strong>ferramentas externas</strong> e <strong>fluxos de processamento</strong> para construir aplicações inteligentes?</p>
         </div>
       </div>
-      <div class="slide-footer"><span>Do modelo isolado à aplicação integrada</span><span>Bloco 1: Problema</span></div>
+      <div class="slide-footer"><span>Problemática central que guia a arquitetura proposta</span><span>Bloco 1: Problema</span></div>
     </section>
 
     <!-- SLIDE 5 -->
@@ -648,27 +699,47 @@
         <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
         <span class="slide-num">07 / 28</span>
       </div>
-      <div class="slide-body">
+      <div class="slide-body" style="justify-content:space-between;gap:0.55rem;">
         <h2>Evolução: de RNN e LSTM para Transformers</h2>
-        <div class="grid-3">
-          <div class="box box-red">
-            <h3>RNN</h3>
-            <div class="math-box" style="font-size:0.84rem;">$$h_t = f(W_x x_t + W_h h_{t-1} + b)$$</div>
-            <p>Processamento estritamente sequencial; sofre com <em>vanishing gradient</em> em dependências longas.</p>
+        <div class="grid-3" style="gap:0.85rem;">
+          <div class="box box-red" style="padding:0.65rem 0.85rem;gap:0.28rem;">
+            <h3>RNN (Elman, 1990)</h3>
+            <div class="math-box" style="font-size:0.78rem;padding:0.35rem 0.45rem;">$$h_t = \tanh(W_x x_t + W_h h_{t-1} + b)$$</div>
+            <ul style="font-size:0.75rem;gap:0.2rem;">
+              <li><strong>Como opera:</strong> comprime o histórico em um único estado oculto $h_t$, atualizado passo a passo ($t = 1 \dots n$).</li>
+              <li><strong>Gargalo $O(n)$:</strong> depende de $h_{t-1}$, impedindo paralelismo em GPU.</li>
+              <li><strong>BPTT:</strong> multiplicações repetidas por $W_h$ causam <em>vanishing gradient</em> em frases longas.</li>
+            </ul>
           </div>
-          <div class="box box-amber">
-            <h3>LSTM</h3>
-            <div class="math-box" style="font-size:0.78rem;">
-              $$f_t = \sigma(W_f[x_t, h_{t-1}] + b_f)$$
-              $$C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t$$
+          <div class="box box-amber" style="padding:0.65rem 0.85rem;gap:0.28rem;">
+            <h3>LSTM (Hochreiter &amp; Schmidhuber, 1997)</h3>
+            <div class="math-box" style="font-size:0.73rem;padding:0.35rem 0.45rem;">
+              $$f_t = \sigma(W_f[x_t, h_{t-1}] + b_f), \quad i_t = \sigma(W_i[x_t, h_{t-1}] + b_i)$$
+              $$C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t, \quad h_t = o_t \odot \tanh(C_t)$$
             </div>
-            <p>Portas controlam esquecimento e memória, mas o gargalo sequencial permanece.</p>
+            <ul style="font-size:0.75rem;gap:0.2rem;">
+              <li><strong>Avanço:</strong> portas de esquecimento ($f_t$), entrada ($i_t$) e saída ($o_t$) + esteira aditiva $C_t$ preservam dependências mais longas.</li>
+              <li><strong>Limite:</strong> continua <strong>sequencial</strong> ($t-1 \to t$), sem paralelismo no treino.</li>
+            </ul>
           </div>
-          <div class="box box-green">
-            <h3>Transformer (2017)</h3>
-            <p><strong>Substitui recorrência por Atenção:</strong> todos os tokens interagem diretamente em paralelo ($O(1)$ saltos entre quaisquer palavras), preservando contexto global.</p>
+          <div class="box box-green" style="padding:0.65rem 0.85rem;gap:0.28rem;">
+            <h3>Transformer (Vaswani et al., 2017)</h3>
+            <div class="math-box" style="font-size:0.76rem;padding:0.35rem 0.45rem;">$$\text{Distância entre tokens} = O(1) \text{ (Atenção Direta)}$$</div>
+            <ul style="font-size:0.75rem;gap:0.2rem;">
+              <li><strong>Sem recorrência:</strong> todos os tokens interagem em paralelo via <em>Self-Attention</em>.</li>
+              <li><strong>Paralelismo total:</strong> treina em GPU sobre toda a sequência de uma só vez.</li>
+              <li><strong>Trade-off:</strong> matriz $n \times n$ tem custo $O(n^2)$, otimizada na inferência com <em>KV-Cache</em>.</li>
+            </ul>
           </div>
         </div>
+        <table style="font-size:0.74rem;">
+          <thead><tr><th>Critério Arquitetural</th><th>RNN</th><th>LSTM</th><th>Transformer</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Caminho entre quaisquer 2 palavras</strong></td><td>$O(n)$ passos</td><td>$O(n)$ passos</td><td><strong>$O(1)$ salto direto</strong></td></tr>
+            <tr><td><strong>Paralelismo no treinamento (GPU)</strong></td><td>Não (sequencial)</td><td>Não (sequencial)</td><td><strong>Sim (paralelo total)</strong></td></tr>
+            <tr><td><strong>Representação da memória</strong></td><td>Vetor único $h_t$</td><td>Célula fixa $C_t$</td><td><strong>Matriz completa $Q \cdot K^T$</strong></td></tr>
+          </tbody>
+        </table>
       </div>
       <div class="slide-footer"><span>Vaswani et al. (2017) — Attention Is All You Need</span><span>Bloco 2: Fundamentos</span></div>
     </section>
@@ -999,27 +1070,30 @@ ORDER BY embedding &lt;=&gt; :q_vec LIMIT 4;</code></pre>
         <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
         <span class="slide-num">17 / 28</span>
       </div>
-      <div class="slide-body">
-        <h2>Tools &amp; Fundamento Teórico do Tool Calling</h2>
-        <div class="grid-2">
-          <div class="box">
-            <h3>Como o Transformer "Chama" uma Função?</h3>
-            <ul style="font-size:0.82rem;">
-              <li><strong>O LLM não executa código:</strong> ele recebe os <em>JSON Schemas</em> das ferramentas no contexto e gera tokens estruturados propondo a chamada.</li>
-              <li><strong>Âncora Semântica:</strong> a <code>docstring</code> e a tipagem guiam a Self-Attention e o roteador MoE para escolher a ferramenta exata.</li>
+      <div class="slide-body" style="justify-content:space-between;gap:0.55rem;">
+        <h2>Tools &amp; Fundamentos Teóricos de Tool Calling</h2>
+        <div class="math-box" style="font-size:0.82rem;padding:0.45rem 0.8rem;">
+          $$P(y_t \mid x, C, \mathcal{T}) \longrightarrow \begin{cases} w_t \in \mathcal{V} & \text{(geração textual direta no vocabulário)} \\ (f_k, \theta_k) \in \mathcal{T} & \text{(decodificação estruturada de Tool Call)} \end{cases}$$
+        </div>
+        <div class="grid-2" style="gap:0.9rem;">
+          <div class="box" style="padding:0.7rem 0.85rem;gap:0.35rem;">
+            <h3>1. Motivação &amp; Seleção Semântica</h3>
+            <ul style="font-size:0.78rem;gap:0.25rem;">
+              <li><strong>Limite Paramétrico:</strong> pesos pré-treinados são estáticos e propensos a alucinações aritméticas e temporais. Ferramentas externalizam computação determinística e acesso a estado vivo.</li>
+              <li><strong>Alinhamento via Atenção:</strong> os <em>JSON Schemas</em> e <code>docstrings</code> são injetados no contexto $C$; a <em>Self-Attention</em> alinha a intenção ($Q$) aos descritores ($K$) e aplica <em>Constrained Decoding</em> para garantir parâmetros tipados válidos.</li>
             </ul>
-            <pre><code>@tool
+            <pre style="font-size:0.69rem;padding:0.45rem 0.65rem;"><code>@tool
 def calcular_faturamento(qtd: int, ticket: float) -> float:
     """Calcula faturamento sem erro aritmético."""
     return qtd * ticket</code></pre>
           </div>
-          <div class="box box-accent">
-            <h3>Contrato de Execução Determinística</h3>
-            <ol style="font-size:0.83rem;">
-              <li><strong>Proposta:</strong> LLM emite <code>tool_calls</code> (nome + argumentos JSON).</li>
-              <li><strong>Validação:</strong> Orquestrador valida schema, tipos e permissões de acesso (nunca confia cegamente no JSON).</li>
-              <li><strong>Execução:</strong> Python/SQL/Web executa de forma determinística e reprodutível.</li>
-              <li><strong>Realimentação:</strong> Resultado volta como <code>ToolMessage</code> para a próxima passada do Transformer.</li>
+          <div class="box box-accent" style="padding:0.7rem 0.85rem;gap:0.35rem;">
+            <h3>2. Ciclo Formal de Execução Determinística</h3>
+            <ol style="font-size:0.78rem;gap:0.28rem;">
+              <li><strong>Proposta (Modelo):</strong> gera o par $(f_k, \theta_k)$ com nome da função e argumentos em JSON, emitindo <em>stop token</em> de chamada.</li>
+              <li><strong>Validação (Orquestrador):</strong> o código da aplicação valida o schema, os tipos e as permissões de acesso (o LLM <strong>nunca</strong> executa código diretamente).</li>
+              <li><strong>Execução (Ambiente Real):</strong> executa SQL parametrizado, busca Web, leitura de arquivos ou API externa de forma determinística.</li>
+              <li><strong>Observação (Realimentação):</strong> o retorno $o_k = f_k(\theta_k)$ é reinjetado como <code>ToolMessage</code> no contexto para condicionar a síntese final.</li>
             </ol>
           </div>
         </div>
@@ -1071,34 +1145,76 @@ def calcular_faturamento(qtd: int, ticket: float) -> float:
         <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
         <span class="slide-num">19 / 28</span>
       </div>
-      <div class="slide-body">
+      <div class="slide-body" style="justify-content:space-between;gap:0.65rem;">
         <h2>LangGraph &amp; Model Context Protocol (MCP)</h2>
-        <div class="grid-2">
-          <div class="box box-accent">
-            <h3>LangGraph — Máquina de Estados em Grafo $(V, E, S)$</h3>
-            <ul style="font-size:0.82rem;">
-              <li><strong>Por que grafos?</strong> Loops ReAct puros são difíceis de auditar; LangGraph modela o agente como grafo direcionado com ciclos controlados.</li>
-              <li><strong>State ($S$) + Reducers:</strong> estado tipado compartilhado e atualizado incrementalmente entre nós ($V$).</li>
-              <li><strong>Conditional Edges ($E$):</strong> roteamento determinístico ou via LLM com limite de iterações.</li>
-              <li><strong>Checkpoints &amp; Interrupts:</strong> persistência de estado para tolerância a falhas e pausa <em>Human-in-the-loop</em>.</li>
+        <div class="grid-2" style="gap:0.95rem;">
+          <div class="box box-accent" style="padding:0.75rem 0.95rem;gap:0.35rem;">
+            <h3>LangGraph — Orquestração por Máquina de Estados $G=(V,E,S)$</h3>
+            <p style="font-size:0.79rem;">Supera a imprevisibilidade de loops ReAct puros ao formalizar o fluxo agêntico como um grafo direcionado com ciclos controlados e estado persistente:</p>
+            <ul style="font-size:0.78rem;gap:0.26rem;">
+              <li><strong>State ($S$) Tipado + Reducers:</strong> estrutura compartilhada entre etapas; cada nó lê e aplica atualizações incrementais determinísticas.</li>
+              <li><strong>Nodes ($V$) &amp; Conditional Edges ($E$):</strong> nós executam chamadas LLM ou ferramentas; arestas condicionais roteiam caminhos com limite explícito de iterações.</li>
+              <li><strong>Checkpoints &amp; Interrupts:</strong> persistência em disco/banco permitindo retomada após falhas e pausas de aprovação humana (<em>Human-in-the-loop</em>).</li>
             </ul>
           </div>
-          <div class="box box-green">
-            <h3>MCP — Padronização Cliente–Servidor ($N \times M \to N + M$)</h3>
-            <div class="flow-row" style="justify-content:flex-start;margin:0.25rem 0;">
-              <div class="flow-node">Cliente IA</div><span class="flow-arrow">→</span>
-              <div class="flow-node">Cliente MCP</div><span class="flow-arrow">→</span>
-              <div class="flow-node">Servidor MCP</div><span class="flow-arrow">→</span>
-              <div class="flow-node">Recurso</div>
+          <div class="box box-green" style="padding:0.75rem 0.95rem;gap:0.35rem;">
+            <h3>MCP — Padronização Aberta ($O(N \times M) \to O(N + M)$)</h3>
+            <p style="font-size:0.78rem;">O <strong>Model Context Protocol</strong> (Anthropic, 2024) padroniza via <strong>JSON-RPC 2.0</strong> (<code>STDIO</code> local ou <code>HTTP/SSE</code> remoto) como aplicações conectam LLMs a contextos externos:</p>
+            <div class="flow-row" style="justify-content:flex-start;margin:0.15rem 0;gap:0.3rem;">
+              <div class="flow-node" style="font-size:0.72rem;padding:0.28rem 0.5rem;">Host (App/IDE)</div><span class="flow-arrow">→</span>
+              <div class="flow-node" style="font-size:0.72rem;padding:0.28rem 0.5rem;">Client (1:1)</div><span class="flow-arrow">→</span>
+              <div class="flow-node" style="font-size:0.72rem;padding:0.28rem 0.5rem;">MCP Server</div>
             </div>
-            <ul style="font-size:0.82rem;">
-              <li><strong>Problema resolvido:</strong> evita criar conectores exclusivos para cada par modelo × ferramenta.</li>
-              <li><strong>Primitivas JSON-RPC:</strong> expõe <em>Tools</em> (ações), <em>Resources</em> (dados) e <em>Prompts</em> de forma desacoplada da orquestração.</li>
+            <ul style="font-size:0.77rem;gap:0.24rem;">
+              <li><strong>Topologia:</strong> o <em>Host</em> governa permissões; cada <em>Client</em> mantém sessão 1:1 com um <em>Server</em> isolado.</li>
+              <li><strong>Resources (Substantivos):</strong> fontes <em>read-only</em> por URI (<code>postgres://schema</code>), controladas pela aplicação.</li>
+              <li><strong>Tools (Verbos) &amp; Prompts:</strong> ações descobertas via <code>tools/list</code> e invocadas via <code>tools/call</code> pelo modelo, além de templates acionados pelo usuário.</li>
             </ul>
           </div>
         </div>
       </div>
       <div class="slide-footer"><span>Controle de grafos e padronização de contexto</span><span>Bloco 2: Fundamentos</span></div>
+    </section>
+
+    <!-- SLIDE 22 -->
+    <section class="slide" data-notes="Apresentar os 3 modelos avaliados no experimento e suas arquiteturas modulares distintas.">
+      <div class="slide-top">
+        <span class="section-pill pill-p2">2. Fundamentos Técnicos</span>
+        <span class="slide-num">22 / 28</span>
+      </div>
+      <div class="slide-body">
+        <h2>Arquiteturas dos 3 Modelos Avaliados na Plataforma</h2>
+        <div class="grid-3">
+          <div class="box box-green">
+            <h3>openai/gpt-6.1-sol</h3>
+            <p><strong>Decoder-Only + GQA</strong></p>
+            <ul>
+              <li>Tokenização BPE + RoPE.</li>
+              <li>Grouped-Query Attention focada em comando direto.</li>
+              <li>Emite JSON de Tool Call sem chamadas redundantes.</li>
+            </ul>
+          </div>
+          <div class="box box-accent">
+            <h3>google/gemini-4-hydrogen</h3>
+            <p><strong>Multimodal Sparse MoE</strong></p>
+            <ul>
+              <li>Espaço vetorial unificado (texto, tabelas, web).</li>
+              <li>Atenção Global Esparsa + Router Top-K.</li>
+              <li>Tende a fazer verificação cruzada entre ferramentas.</li>
+            </ul>
+          </div>
+          <div class="box" style="border-left:4px solid var(--purple);">
+            <h3>moonshotai/kimi-k3.1-pro</h3>
+            <p><strong>Long-Context MoE</strong></p>
+            <ul>
+              <li>Atenção de longo alcance (MLA) + KV-Cache.</li>
+              <li>Cadeia analítica estendida com múltiplas passagens.</li>
+              <li>Maior cobertura e detalhamento na síntese.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span>Arquitetura interna influencia diretamente o padrão de Tool Calling</span><span>Bloco 2: Fundamentos</span></div>
     </section>
 
     <!-- SLIDE 20 -->
@@ -1137,47 +1253,6 @@ def calcular_faturamento(qtd: int, ticket: float) -> float:
       <div class="slide-footer"><span>Arquitetura modular real em produção neste projeto</span><span>Bloco 3: Experimento</span></div>
     </section>
 
-    <!-- SLIDE 22 -->
-    <section class="slide" data-notes="Apresentar os 3 modelos avaliados no experimento e suas arquiteturas modulares distintas.">
-      <div class="slide-top">
-        <span class="section-pill pill-p3">3. Experimento &amp; Aplicação Prática</span>
-        <span class="slide-num">22 / 28</span>
-      </div>
-      <div class="slide-body">
-        <h2>Arquiteturas dos 3 Modelos Avaliados na Plataforma</h2>
-        <div class="grid-3">
-          <div class="box box-green">
-            <h3>openai/gpt-6.1-sol</h3>
-            <p><strong>Decoder-Only + GQA</strong></p>
-            <ul>
-              <li>Tokenização BPE + RoPE.</li>
-              <li>Grouped-Query Attention focada em comando direto.</li>
-              <li>Emite JSON de Tool Call sem chamadas redundantes.</li>
-            </ul>
-          </div>
-          <div class="box box-accent">
-            <h3>google/gemini-4-hydrogen</h3>
-            <p><strong>Multimodal Sparse MoE</strong></p>
-            <ul>
-              <li>Espaço vetorial unificado (texto, tabelas, web).</li>
-              <li>Atenção Global Esparsa + Router Top-K.</li>
-              <li>Tende a fazer verificação cruzada entre ferramentas.</li>
-            </ul>
-          </div>
-          <div class="box" style="border-left:4px solid var(--purple);">
-            <h3>moonshotai/kimi-k3.1-pro</h3>
-            <p><strong>Long-Context MoE</strong></p>
-            <ul>
-              <li>Atenção de longo alcance (MLA) + KV-Cache.</li>
-              <li>Cadeia analítica estendida com múltiplas passagens.</li>
-              <li>Maior cobertura e detalhamento na síntese.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      <div class="slide-footer"><span>Arquitetura interna influencia diretamente o padrão de Tool Calling</span><span>Bloco 3: Experimento</span></div>
-    </section>
-
     <!-- SLIDE 23 -->
     <section class="slide" data-notes="Apresentar os dados REAIS observados no TestClient sobre POST /api/compare-models!">
       <div class="slide-top">
@@ -1204,7 +1279,7 @@ def calcular_faturamento(qtd: int, ticket: float) -> float:
             <small style="color:var(--muted);">Entrada: 3.055 | Tool Calling: 499 | Saída: 492</small>
           </div>
         </div>
-        <p style="font-size:0.84rem;"><strong>Baseline (LLM isolado):</strong> incapaz de responder com precisão (0% de acurácia factual sem SQL). Com orquestração, <code>gpt-6.1-sol</code> consumiu <strong>63,5% menos tokens</strong> que <code>kimi-k3.1-pro</code> na mesma tarefa.</p>
+        <p style="font-size:0.82rem;"><strong>Baseline (LLM isolado):</strong> <code>2.368,1 ms</code>, 107 tokens — recusou por não ter acesso ao PostgreSQL (0% de acurácia factual). Com LangChain, <code>gpt-6.1-sol</code> resolveu com <strong>63,5% menos tokens</strong> que <code>kimi-k3.1-pro</code>.</p>
       </div>
       <div class="slide-footer"><span>Métricas reais observadas no comparador do projeto</span><span>Bloco 3: Experimento</span></div>
     </section>
@@ -1216,26 +1291,24 @@ def calcular_faturamento(qtd: int, ticket: float) -> float:
         <span class="slide-num">25 / 30</span>
       </div>
       <div class="slide-body">
-        <h2>Experimento (Parte 1): Prompt Errado / Vago</h2>
+        <h2>Experimento (Parte 1): Prompt Errado / Vago (Medição Real)</h2>
         <div class="box box-red">
-          <h3>❌ Prompt Enviado pelo Usuário</h3>
-          <p style="font-family:'JetBrains Mono',monospace;font-size:0.95rem;font-weight:700;">"Me vê os dados de 2025 aí e faz um arquivo"</p>
+          <h3>❌ Prompt Enviado pelo Usuário (<code>mode="auto"</code>)</h3>
+          <p style="font-family:'JetBrains Mono',monospace;font-size:0.95rem;font-weight:700;">"Me vê os dados de 2025 aí"</p>
         </div>
         <div class="grid-2">
           <div class="box">
-            <h3>O que acontece no Transformer &amp; MoE?</h3>
-            <ul style="font-size:0.83rem;">
+            <h3>O que aconteceu no Transformer &amp; MoE?</h3>
+            <ul style="font-size:0.82rem;">
               <li><strong>Ambiguidade semântica:</strong> <code>"dados"</code> não especifica se a fonte é PostgreSQL, <code>storage/</code> ou Web.</li>
-              <li><strong>Dispersão de atenção:</strong> os pesos da <em>Self-Attention</em> se espalham entre múltiplos especialistas MoE.</li>
-              <li><strong>Formato indefinido:</strong> <code>"um arquivo"</code> não define se é PDF, JSON ou texto simples.</li>
+              <li><strong>Dispersão de atenção:</strong> a <em>Self-Attention</em> não converge para uma única ferramenta, ativando múltiplas buscas em paralelo.</li>
             </ul>
           </div>
           <div class="box box-amber">
-            <h3>Consequência na Jornada Multiagente</h3>
-            <ol style="font-size:0.83rem;">
-              <li>Agente dispara buscas exploratórias (<code>listar_arquivos_storage</code> → <code>consultar_vendas</code> → <code>consultar_compras_restaurante</code>).</li>
-              <li>Histórico cresce a cada iteração do loop ReAct.</li>
-              <li><strong>Resultado:</strong> 4+ chamadas LLM, ~3.800–4.500 tokens gastos e risco de formato incorreto.</li>
+            <h3>Execução Real Observada no Backend</h3>
+            <ol style="font-size:0.82rem;">
+              <li>Disparou <strong>4 ferramentas exploratórias</strong>: <code>buscar_em_arquivos</code>, <code>consultar_compras_restaurante</code>, <code>consultar_vendas</code> e <code>web_search</code>.</li>
+              <li><strong>Consumo real medido:</strong> <strong>4 chamadas LLM</strong>, <code>6.478</code> input + <code>1.611</code> tool calling + <code>225</code> output = <strong>6.703 tokens</strong> em <strong>7.479,8 ms</strong>.</li>
             </ol>
           </div>
         </div>
@@ -1249,31 +1322,38 @@ def calcular_faturamento(qtd: int, ticket: float) -> float:
         <span class="section-pill pill-p3">3. Experimento &amp; Aplicação Prática</span>
         <span class="slide-num">26 / 30</span>
       </div>
-      <div class="slide-body">
+      <div class="slide-body" style="justify-content:space-between;gap:0.45rem;">
         <h2>Experimento (Parte 2): Prompt Detalhado &amp; Token Economics</h2>
-        <div class="box box-green">
-          <h3>✅ Prompt Estruturado (Verbo + Fonte + Filtro + Formato)</h3>
-          <p style="font-family:'JetBrains Mono',monospace;font-size:0.88rem;font-weight:700;">"Consulte o total de compras do restaurante em 2025 no PostgreSQL e gere um relatório em PDF por categoria."</p>
+        <div class="box box-green" style="padding:0.42rem 0.85rem;">
+          <h3>✅ Prompt Estruturado (<code>"Qual foi o total gasto em 2025 nas compras do restaurante?"</code>)</h3>
         </div>
-        <div class="grid-2" style="grid-template-columns: 1.15fr 0.85fr;">
-          <div class="box">
-            <h3>Comparação Final — Visão de Token Economics</h3>
-            <table>
-              <thead><tr><th>Métrica</th><th>❌ Prompt Vago</th><th>✅ Prompt Detalhado</th></tr></thead>
+        <div class="grid-2" style="grid-template-columns: 1.32fr 0.68fr;gap:0.8rem;">
+          <div class="box" style="padding:0.55rem 0.75rem;">
+            <h3>Comparação Final — Indicadores Reais &amp; Modelos</h3>
+            <table style="font-size:0.71rem;">
+              <thead><tr><th>Cenário / Modelo &amp; Arquitetura</th><th>LLM</th><th>Input / Tool / Total</th><th>Latência / Tools</th></tr></thead>
               <tbody>
-                <tr><td>Chamadas LLM</td><td>4+ (exploratórias)</td><td><strong>2 chamadas</strong> (direto)</td></tr>
-                <tr><td>Tool Calling</td><td>Múltiplas tentativas</td><td><strong>Exata</strong> (SQL → PDF)</td></tr>
-                <tr><td>Tokens Totais</td><td>~3.800 – 4.500</td><td><strong>1.295 tokens</strong> (GPT-6.1)</td></tr>
-                <tr><td>Economia</td><td>Baseline ineficiente</td><td><strong>~60%–70% menos custo</strong></td></tr>
+                <tr><td>❌ Prompt Vago (<code>GPT-6.1</code>, <code>auto</code>, 13 tools)</td><td>4</td><td>6.478 / 1.611 / <strong>6.703</strong></td><td>7.479,8 ms</td></tr>
+                <tr><td>✅ Estruturado (<code>GPT-6.1</code>, <code>auto</code>, 13 tools)</td><td>2</td><td>2.367 / 77 / <strong>2.423</strong></td><td>3.743,8 ms</td></tr>
+                <tr><td>🎯 <strong>GPT-6.1-Sol</strong> (<code>database</code>, Decoder+GQA)</td><td>2</td><td>1.384 / 77 / <strong>1.439</strong></td><td>3.678,5 ms</td></tr>
+                <tr><td>🔵 <strong>Gemini-4-Hydrogen</strong> (<code>database</code>, Sparse MoE)</td><td>3</td><td>2.391 / 434 / <strong>2.786</strong></td><td>2 tools</td></tr>
+                <tr><td>🟣 <strong>Kimi-K3.1-Pro</strong> (<code>database</code>, Long-Ctx MoE)</td><td>3</td><td>3.055 / 499 / <strong>3.547</strong></td><td>2 tools</td></tr>
+                <tr><td>💬 Memória Turno 2 (<code>GPT-6.1</code>, <code>database</code>)</td><td>2</td><td>2.212 / 135 / <strong>2.304</strong></td><td>3.592,3 ms</td></tr>
+                <tr><td>⚡ Chain Fixa (LCEL, 1 passo)</td><td>1</td><td>—</td><td>1.705,2 ms</td></tr>
               </tbody>
             </table>
           </div>
-          <div class="box box-accent">
-            <h3>Lição de Token Economics</h3>
-            <ul style="font-size:0.82rem;">
-              <li>Em agentes, <strong>cada iteração extra reenvia todo o histórico</strong> ($O(k \cdot n)$ tokens de entrada).</li>
-              <li>Prompt claro + escolha do modelo certo (<code>gpt-6.1-sol</code> vs <code>kimi-k3.1-pro</code>) reduz <strong>custo e latência em até 3×</strong> mantendo precisão factual.</li>
-            </ul>
+          <div class="box box-accent" style="padding:0.55rem 0.8rem;display:flex;flex-direction:column;justify-content:space-between;">
+            <div>
+              <h3>Conclusões Quantitativas</h3>
+              <ul style="font-size:0.74rem;gap:0.2rem;margin-top:0.35rem;">
+                <li><strong>Prompt claro:</strong> reduziu o consumo em <strong>2,77×</strong> (6.703 → 2.423 tokens) e caiu pela metade em latência.</li>
+                <li><strong><code>bind_tools</code> restrito:</strong> cortar de 13 para 3 tools SQL economizou mais <strong>40,6%</strong> (2.423 → 1.439 tokens).</li>
+                <li><strong>Arquiteturas:</strong> <code>GQA</code> convergiu em 1 tool; <code>Sparse MoE</code> e <code>Long-Ctx MoE</code> validaram 2 tools (<code>+94%</code> e <code>+146%</code> tokens).</li>
+                <li><strong>Memória:</strong> Turno 2 elevou <code>input</code> em <strong>+59,8%</strong> pelo histórico.</li>
+              </ul>
+            </div>
+            <a href="index.html" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;margin-top:0.5rem;padding:0.45rem 0.75rem;border-radius:8px;background:var(--accent,#4f46e5);color:#fff;font-weight:700;font-size:0.76rem;text-decoration:none;box-shadow:0 2px 6px rgba(79,70,229,0.25);">🚀 Abrir Aplicação do Projeto (index.html) ↗</a>
           </div>
         </div>
       </div>
@@ -1376,12 +1456,17 @@ def calcular_faturamento(qtd: int, ticket: float) -> float:
         </div>
         <div class="grid-2">
           <div class="box">
-            <h3>Artigos Fundamentais</h3>
-            <ul style="font-size:0.82rem;">
+            <h3>Artigos &amp; Obras Fundamentais</h3>
+            <ul style="font-size:0.72rem;gap:0.16rem;">
+              <li>Jurafsky &amp; Martin (2024) — <em>Speech and Language Processing</em> (3ª ed.).</li>
+              <li>Manning &amp; Schütze (1999) — <em>Foundations of Statistical NLP</em> (MIT Press).</li>
+              <li>Bengio et al. (2003) — <em>A Neural Probabilistic Language Model</em> (JMLR).</li>
               <li>Vaswani et al. (2017) — <em>Attention Is All You Need</em>.</li>
               <li>Devlin et al. (2018) — <em>BERT: Bidirectional Transformers</em>.</li>
               <li>Lewis et al. (2020) — <em>Retrieval-Augmented Generation</em>.</li>
               <li>Shazeer et al. (2017) &amp; Fedus et al. (2022) — <em>MoE / Switch Transformers</em>.</li>
+              <li>Schick et al. (2023) — <em>Toolformer</em> (<code>arXiv:2302.04761</code>) &bull; Yao et al. (2023) — <em>ReAct</em>.</li>
+              <li>Qin et al. (2024) — <em>Tool Learning with Foundation Models</em> (<code>arXiv:2304.08354</code>).</li>
             </ul>
           </div>
           <div class="box">
@@ -1395,7 +1480,7 @@ def calcular_faturamento(qtd: int, ticket: float) -> float:
           </div>
         </div>
       </div>
-      <div class="slide-footer"><span>Obrigado! &bull; Perguntas?</span><span>28 / 28</span></div>
+      <div class="slide-footer"><span>Obrigado! &bull; Perguntas?</span><span>31 / 31</span></div>
     </section>
 
   </div>

@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guia do Apresentador — Roteiro Completo (31 Slides)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --primary: #4f46e5;
+      --blue: #2563eb;
+      --green: #059669;
+      --amber: #d97706;
+      --red: #dc2626;
+      --font-scale: 1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding-bottom: 4rem;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(15, 23, 42, 0.96);
+      color: #f8fafc;
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      border-bottom: 1px solid #334155;
+      backdrop-filter: blur(8px);
+    }
+
+    .topbar-title {
+      font-size: 0.98rem;
+      font-weight: 800;
+    }
+
+    .topbar-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .btn {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn:hover { background: var(--primary); border-color: var(--primary); }
+
+    .search-box {
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 0.8rem;
+      width: 210px;
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 1.4rem auto;
+      padding: 0 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+    }
+
+    .quick-nav {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .quick-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 0.25rem 0.55rem;
+      border-radius: 6px;
+      background: #f1f5f9;
+      color: #334155;
+      text-decoration: none;
+      border: 1px solid var(--border);
+    }
+    .quick-pill:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .guide-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--primary);
+      border-radius: 12px;
+      padding: 1.15rem 1.35rem;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      scroll-margin-top: 76px;
+    }
+
+    .guide-card.b1 { border-left-color: var(--red); }
+    .guide-card.b2 { border-left-color: var(--blue); }
+    .guide-card.b3 { border-left-color: var(--green); }
+    .guide-card.b4 { border-left-color: var(--amber); }
+
+    .guide-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.45rem;
+    }
+
+    .slide-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.76rem;
+      font-weight: 800;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: var(--primary);
+    }
+
+    .block-tag {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    h2 {
+      font-size: calc(1.18rem * var(--font-scale));
+      color: var(--text);
+      font-weight: 800;
+    }
+
+    .speak-text {
+      font-size: calc(0.96rem * var(--font-scale));
+      color: #1e293b;
+    }
+
+    .math-explain {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      padding: 0.75rem 0.95rem;
+      font-size: calc(0.9rem * var(--font-scale));
+    }
+    .math-explain strong { color: #0369a1; }
+
+    .tip-box {
+      background: #fefce8;
+      border: 1px solid #fde047;
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      font-size: calc(0.84rem * var(--font-scale));
+      color: #713f12;
+    }
+
+    @media print {
+      .topbar, .quick-nav { display: none !important; }
+      body { background: #fff; }
+      .guide-card { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-title">🎙️ Guia do Apresentador — LangChain &amp; Transformers (31 Slides)</div>
+    <div class="topbar-controls">
+      <input type="search" id="searchSlide" class="search-box" placeholder="Filtrar slide ou tema...">
+      <span id="timerView" style="font-family:'JetBrains Mono',monospace;font-size:0.82rem;padding:0 0.4rem;">⏱️ 00:00</span>
+      <button type="button" class="btn" id="btnTimer">▶ Iniciar</button>
+      <button type="button" class="btn" id="btnResetTimer">↺</button>
+      <button type="button" class="btn" id="btnFontMinus">A-</button>
+      <button type="button" class="btn" id="btnFontPlus">A+</button>
+      <a href="apresentacao_slides.html" target="_blank" class="btn">🖥️ Abrir Slides</a>
+      <button type="button" class="btn" onclick="window.print()">🖨️ PDF</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <nav class="quick-nav" aria-label="Atalhos dos slides" id="quickNav"></nav>
+
+    <!-- SLIDE 1 -->
+    <article class="guide-card" id="slide-1">
+      <div class="guide-head"><span class="slide-badge">SLIDE 01</span><span class="block-tag">Abertura</span></div>
+      <h2>LangChain: Desenvolvimento de Aplicações de PLN com Modelos de Linguagem</h2>
+      <p class="speak-text">
+        "Bom dia/boa noite. Hoje vamos apresentar como sair de um modelo de linguagem isolado — que apenas recebe um texto e responde — para uma aplicação inteligente completa, conectada a documentos, bancos de dados, internet e fluxos controlados. A nossa questão central é exatamente esta: <strong>como integrar modelos Transformers a documentos, bancos de dados, ferramentas externas e fluxos de processamento para construir aplicações inteligentes?</strong>"
+      </p>
+      <div class="tip-box"><strong>Dica:</strong> Leia a Questão Central com calma, pois ela amarra toda a apresentação do início ao fim.</div>
+    </article>
+
+    <!-- SLIDE 2 -->
+    <article class="guide-card" id="slide-2">
+      <div class="guide-head"><span class="slide-badge">SLIDE 02</span><span class="block-tag">Agenda</span></div>
+      <h2>Agenda</h2>
+      <p class="speak-text">
+        "Nosso roteiro segue sete passos diretos: começamos pelos fundamentos de PLN, Tokens e Embeddings; passamos pelas limitações dos LLMs isolados e a problemática do projeto; entramos no coração do Transformer, Atenção e Mixture of Experts; vemos como o LangChain, RAG, Tools, LangGraph e MCP orquestram tudo isso; apresentamos nossos experimentos reais comparando 3 LLMs e Token Economics; e fechamos com segurança, limitações e referências."
+      </p>
+    </article>
+
+    <!-- SLIDE 3 -->
+    <article class="guide-card b1" id="slide-3">
+      <div class="guide-head"><span class="slide-badge">SLIDE 03</span><span class="block-tag">Bloco 1 — Problema e Motivação</span></div>
+      <h2>O que é Processamento de Linguagem Natural (PLN)?</h2>
+      <p class="speak-text">
+        "PLN é a área que une Linguística Computacional e Aprendizado de Máquina para fazer o computador interpretar, representar e gerar linguagem humana. Segundo Jurafsky e Martin, a linguagem precisa ser resolvida em quatro níveis: morfológico (estrutura das palavras), sintático (gramática), semântico (significado) e pragmático (intenção no contexto). A tabela mostra a evolução: saímos de regras rígidas, passamos por modelos estatísticos esparsos como n-gramas, redes neurais recorrentes, até chegarmos aos Transformers e LLMs."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura da Fórmula — Modelagem Probabilística da Linguagem:</strong><br>
+        <code>P(w_1, ..., w_n) = produtorio P(w_t | w_&lt;t)</code><br>
+        <strong>Como falar:</strong> "A probabilidade de uma frase inteira acontecer é obtida multiplicando a probabilidade de cada palavra atual acontecer, dado todo o histórico de palavras que vieram antes dela."<br>
+        <strong>Incógnitas:</strong> <code>w_1 ... w_n</code> = sequência de palavras/tokens da frase; <code>n</code> = total de tokens; <code>w_t</code> = token na posição atual <code>t</code>; <code>w_&lt;t</code> = todos os tokens anteriores a <code>t</code>; <code>P(...)</code> = probabilidade condicional.
+      </div>
+    </article>
+
+    <!-- SLIDE 4 -->
+    <article class="guide-card b1" id="slide-4">
+      <div class="guide-head"><span class="slide-badge">SLIDE 04</span><span class="block-tag">Bloco 1 — Problema e Motivação</span></div>
+      <h2>Tokens: Como o Texto é Fatiado e Indexado Antes da IA</h2>
+      <p class="speak-text">
+        "Um ponto fundamental: modelos de IA não leem palavras inteiras nem letras soltas; eles leem <strong>tokens</strong>. Como vemos na imagem do nosso sistema, a frase é fatiada pelo algoritmo BPE: primeiro em unidades UTF-8 para nunca falhar com acentos ou símbolos, depois pares frequentes são fundidos até formar um vocabulário de 50 mil a 128 mil subpalavras. Palavras comuns viram um token; palavras raras são quebradas em pedaços reutilizáveis, como 'fatur' + 'amento'. Cada pedaço ganha um número inteiro — um ID discreto — que ainda não tem significado matemático, mas já define o custo financeiro e a memória consumida."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura da Notação:</strong><br>
+        <code>|V|</code> é o tamanho do vocabulário; <code>t_i</code> é o índice inteiro do token; <code>O(n^2)</code> significa que o custo da Atenção cresce com o quadrado do número <code>n</code> de tokens. E lembre: em português, gastamos cerca de 20% a 40% mais tokens que em inglês.
+      </div>
+    </article>
+
+    <!-- SLIDE 5 -->
+    <article class="guide-card b1" id="slide-5">
+      <div class="guide-head"><span class="slide-badge">SLIDE 05</span><span class="block-tag">Bloco 1 — Problema e Motivação</span></div>
+      <h2>Embeddings: Do ID Discreto ao Espaço Semântico Contínuo</h2>
+      <p class="speak-text">
+        "Como o ID numérico isolado não diz se 'faturamento' é parecido com 'vendas', entra o <strong>Embedding</strong>. Baseado na Hipótese Distribucional — palavras que aparecem em contextos parecidos têm significados parecidos —, o modelo consulta uma matriz aprendida no treino e transforma cada ID em um vetor denso com centenas ou milhares de dimensões. Termos como 'faturamento', 'vendas' e 'receita' apontam para direções muito próximas nesse espaço. Como o Transformer lê tudo em paralelo, somamos também a codificação posicional para ele saber a ordem exata das palavras."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura Passo a Passo &amp; Incógnitas:</strong><br>
+        &bull; <strong>Como funciona:</strong> Primeiro buscamos o vetor <code>e_i = W_E[t_i]</code> na tabela de embeddings; depois somamos o vetor de posição (<code>x_i = e_i + p_i</code>) para preservar a ordem da frase, formando a matriz completa <code>X</code> de <code>n</code> linhas por <code>d</code> colunas.<br>
+        &bull; <strong>Incógnitas:</strong> <code>t_i</code> = ID inteiro do token; <code>W_E</code> = matriz de lookup aprendida (<code>|V|</code> linhas por <code>d</code> colunas); <code>e_i</code> = vetor de embedding semântico; <code>p_i</code> = vetor posicional; <code>x_i</code> = vetor final do token; <code>X</code> = matriz da sequência inteira em <code>R^(n x d)</code>.
+      </div>
+    </article>
+
+    <!-- SLIDE 6 -->
+    <article class="guide-card b1" id="slide-6">
+      <div class="guide-head"><span class="slide-badge">SLIDE 06</span><span class="block-tag">Bloco 1 — Problema e Motivação</span></div>
+      <h2>Limitações de um Modelo de Linguagem (LLM) Isolado</h2>
+      <p class="speak-text">
+        "Um LLM sozinho é excelente para interpretar perguntas, resumir, classificar e gerar código. Porém, em uma aplicação real, ele tem barreiras severas: não enxerga arquivos privados nem bancos SQL, não sabe o que aconteceu hoje após o treino, não executa ações externas e pode alucinar números com total confiança."
+      </p>
+    </article>
+
+    <!-- SLIDE 7 -->
+    <article class="guide-card b1" id="slide-7">
+      <div class="guide-head"><span class="slide-badge">SLIDE 07</span><span class="block-tag">Bloco 1 — Problema e Motivação</span></div>
+      <h2>Problemática do Projeto: Isolamento &amp; Opacidade na Orquestração</h2>
+      <p class="speak-text">
+        "Isso define a dupla problemática do nosso trabalho. Primeiro, o <strong>isolamento informacional e operacional</strong>: no nosso teste de baseline, o modelo isolado teve 0% de acurácia factual numa consulta de compras de 2025 por não acessar o PostgreSQL. Segundo, a <strong>opacidade e o custo</strong>: mesmo quando conectamos ferramentas, o processo vira uma caixa-preta e um prompt vago pode disparar chamadas exploratórias caríssimas — vimos um salto de 1.439 para 6.703 tokens. Daí reforçamos nossa Questão Central."
+      </p>
+    </article>
+
+    <!-- SLIDE 8 -->
+    <article class="guide-card b1" id="slide-8">
+      <div class="guide-head"><span class="slide-badge">SLIDE 08</span><span class="block-tag">Bloco 1 — Problema e Motivação</span></div>
+      <h2>A Solução: LangChain como Camada de Orquestração</h2>
+      <p class="speak-text">
+        "É aqui que entra o LangChain. Importante deixar claro: LangChain não é um modelo de IA e não substitui o Transformer. Ele é a camada de engenharia que organiza prompts, conecta dados via RAG ou SQL, expõe ferramentas externas e controla o fluxo."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura da Equação Conceitual:</strong><br>
+        <code>Aplicação Inteligente = LLM + Dados + Ferramentas + Orquestração</code> — "O LLM entra com o raciocínio linguístico; os dados e ferramentas trazem os fatos reais; e a orquestração garante controle."
+      </div>
+    </article>
+
+    <!-- SLIDE 9 -->
+    <article class="guide-card b2" id="slide-9">
+      <div class="guide-head"><span class="slide-badge">SLIDE 09</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Representação Computacional da Linguagem</h2>
+      <p class="speak-text">
+        "Resumindo o pipeline de entrada: o texto vira tokens, os tokens viram IDs numéricos e esses IDs são projetados na matriz contínua <code>X</code>. Quanto maior a clareza do prompt, mais limpa e direta é essa matriz de entrada que alimentará a atenção."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura:</strong> <code>x_i = e_i + p_i</code> e <code>X em R^(n x d)</code> — cada linha da matriz representa um token já enriquecido com sua posição na frase.
+      </div>
+    </article>
+
+    <!-- SLIDE 10 -->
+    <article class="guide-card b2" id="slide-10">
+      <div class="guide-head"><span class="slide-badge">SLIDE 10</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Evolução: de RNN e LSTM para Transformers</h2>
+      <p class="speak-text">
+        "Antes de 2017, modelos de linguagem dependiam de redes recorrentes (RNNs) e LSTMs. Na <strong>RNN</strong>, o texto é lido palavra por palavra e todo o histórico é comprimido em um único vetor oculto <code>h_t</code>. Isso cria dois gargalos graves: primeiro, o processamento é estritamente sequencial — para calcular o passo 100, a GPU precisa esperar os 99 anteriores; segundo, durante o treinamento (BPTT), multiplicar o gradiente repetidamente faz o sinal desaparecer em frases longas (<em>vanishing gradient</em>). A <strong>LSTM</strong> melhorou a memória criando uma esteira aditiva controlada por portas (esquecimento, entrada e saída), mas manteve o gargalo sequencial. O <strong>Transformer</strong> (Vaswani et al., 2017) rompeu com a recorrência: via Self-Attention, qualquer palavra se conecta a qualquer outra em 1 único salto direto (<code>O(1)</code>), permitindo paralelismo massivo em GPU."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura Passo a Passo &amp; Incógnitas (RNN, LSTM e Transformer):</strong><br>
+        &bull; <strong>RNN</strong> (<code>h_t = tanh(W_x x_t + W_h h_{t-1} + b)</code>): "O estado oculto atual combina a palavra atual com o estado anterior, passando pela tangente hiperbólica."<br>
+        &bull; <strong>LSTM — Portas &amp; Célula</strong>: "A porta de esquecimento <code>f_t</code> (via sigmoide 0..1) decide o que apagar da memória anterior <code>C_{t-1}</code>; a porta de entrada <code>i_t</code> decide quanto da informação candidata <code>C~_t</code> gravar; a célula <code>C_t = f_t * C_{t-1} + i_t * C~_t</code> multiplica elemento a elemento (Hadamard) e soma as duas partes; e a porta de saída <code>o_t</code> filtra o que vai para <code>h_t = o_t * tanh(C_t)</code>."<br>
+        &bull; <strong>Comparação</strong>: "RNN e LSTM levam <code>O(n)</code> passos sequenciais; o Transformer conecta quaisquer palavras em <code>O(1)</code> salto paralelo, com custo de matriz <code>O(n^2)</code> mitigado por <em>KV-Cache</em>."<br>
+        <strong>Incógnitas:</strong> <code>x_t</code> = vetor de entrada (embedding no passo <code>t</code>); <code>h_{t-1}, h_t</code> = vetores de estado oculto (curto prazo); <code>W_x, W_h, W_f, W_i, W_o</code> = matrizes de pesos; <code>b, b_f, b_i, b_o</code> = vetores de viés (bias); <code>f_t, i_t, o_t</code> = portas (esquecimento, entrada, saída); <code>C_{t-1}, C_t</code> = vetores de estado da célula (longo prazo); <code>n</code> = total de tokens.
+      </div>
+    </article>
+
+    <!-- SLIDE 11 -->
+    <article class="guide-card b2" id="slide-11">
+      <div class="guide-head"><span class="slide-badge">SLIDE 11</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>As 3 Famílias da Arquitetura Transformer</h2>
+      <p class="speak-text">
+        "Da arquitetura original surgiram três famílias principais, ilustradas nos diagramas: 1) <strong>Encoder-Only</strong> (como BERT), onde a matriz de atenção é 100% bidirecional — cada palavra vê esquerda e direita — ideal para gerar embeddings de busca semântica e classificação; 2) <strong>Decoder-Only</strong> (como GPT, Llama e Kimi), que aplica máscara causal triangular para o modelo nunca espiar tokens futuros, permitindo gerar texto e Tool Calls com KV-Cache; e 3) <strong>Encoder-Decoder</strong> (como T5), onde o Encoder lê tudo e passa Chaves e Valores via Cross-Attention para o Decoder gerar a saída."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura da Notação:</strong><br>
+        &bull; <code>c &lt;= r</code> (Máscara Causal): "A coluna <code>c</code> (palavra atendida) tem que ser menor ou igual à linha <code>r</code> (palavra atual) — ou seja, só olha para trás."<br>
+        &bull; <code>P(t_k | t_&lt;k)</code>: "Probabilidade do próximo token <code>t_k</code> dado tudo que já foi gerado antes dele."
+      </div>
+    </article>
+
+    <!-- SLIDE 12 -->
+    <article class="guide-card b2" id="slide-12">
+      <div class="guide-head"><span class="slide-badge">SLIDE 12</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Matemática da Self-Attention (Q, K, V)</h2>
+      <p class="speak-text">
+        "Este é o coração do Transformer. Para cada token, criamos três vetores multiplicando a entrada <code>X</code> por matrizes aprendidas: Query (o que eu procuro), Key (o que eu ofereço para ser encontrado) e Value (o conteúdo que eu entrego). Fazemos a similaridade entre Query e Key, normalizamos com Softmax para virar pesos que somam 100%, e multiplicamos por Value para construir o novo vetor contextualizado."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura Passo a Passo &amp; Incógnitas:</strong><br>
+        <code>Attention(Q, K, V) = softmax( (Q · K^T) / sqrt(d_k) ) · V</code><br>
+        <strong>Como funciona:</strong> 1) <code>Q · K^T</code> mede a afinidade entre cada palavra e todas as outras; 2) dividimos por <code>sqrt(d_k)</code> para não saturar os números; 3) <code>softmax(...)</code> transforma as pontuações em pesos que somam 100%; 4) multiplicamos por <code>V</code> para agregar o contexto das palavras relevantes.<br>
+        <strong>Incógnitas:</strong> <code>X</code> = matriz de entrada; <code>W_Q, W_K, W_V</code> = matrizes de pesos aprendidas; <code>Q</code> = Query (o que o token procura); <code>K</code> = Key (o que oferece para comparação; <code>K^T</code> é a transposta); <code>V</code> = Value (conteúdo semântico entregue); <code>d_k</code> = dimensão dos vetores Query/Key.
+      </div>
+    </article>
+
+    <!-- SLIDE 13 -->
+    <article class="guide-card b2" id="slide-13">
+      <div class="guide-head"><span class="slide-badge">SLIDE 13</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Multi-Head Attention &amp; Feed-Forward Network (FFN)</h2>
+      <p class="speak-text">
+        "Em vez de calcular uma única atenção, o modelo executa várias cabeças em paralelo — uma pode focar em concordância verbal, outra em entidades ou pronomes — e depois concatena tudo. Logo após a atenção, entra a rede Feed-Forward (FFN). É importante distinguir os papéis: a Atenção mistura informações <em>entre</em> tokens diferentes; já a FFN transforma os atributos de <em>cada token individualmente</em>."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura Passo a Passo &amp; Incógnitas:</strong><br>
+        &bull; <strong>Como funciona:</strong> Em <code>MultiHead = Concat(head_1, ..., head_h) W^O</code>, concatenamos as saídas das <code>h</code> cabeças paralelas e projetamos com <code>W^O</code>. Em <code>FFN(x) = W_2 · sigma(W_1 x + b_1) + b_2</code>, expandimos o vetor de cada token individualmente, aplicamos não-linearidade <code>sigma</code> e projetamos de volta.<br>
+        &bull; <strong>Incógnitas:</strong> <code>head_i</code> = saída da cabeça <code>i</code>; <code>h</code> = total de cabeças; <code>W^O</code> = matriz de projeção final; <code>x</code> = vetor de um token; <code>W_1, W_2</code> = matrizes de pesos da FFN; <code>b_1, b_2</code> = vetores de viés (bias); <code>sigma</code> = função de ativação (ReLU/GELU).
+      </div>
+    </article>
+
+    <!-- SLIDE 14 -->
+    <article class="guide-card b2" id="slide-14">
+      <div class="guide-head"><span class="slide-badge">SLIDE 14</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Alternativas à FFN Densa: SwiGLU e Mixture of Experts (MoE)</h2>
+      <p class="speak-text">
+        "Modelos modernos evoluíram a FFN tradicional. Primeiro com a ativação SwiGLU, mais expressiva. Segundo — e crucial hoje — com o <strong>Mixture of Experts (MoE)</strong>, mostrado na figura: no lugar de uma única FFN gigante que processa todo token, temos vários especialistas (Expert 0 a 15) mais um especialista compartilhado. Um componente chamado Router escolhe apenas os K melhores especialistas (por exemplo, Top-2) para processar aquele token específico. Isso permite ter centenas de bilhões de parâmetros mantendo o custo computacional por token muito menor."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura Passo a Passo &amp; Incógnitas:</strong><br>
+        &bull; <strong>Como funciona:</strong> Na <code>SwiGLU(x) = (SiLU(x W_1) * x W_2) W_3</code>, multiplicamos elemento a elemento uma porta ativada por <code>SiLU</code> com outra projeção linear. No <code>MoE(x) = soma_{i em TopK(x)} g_i(x) · E_i(x)</code>, somamos apenas as saídas dos <code>K</code> especialistas escolhidos pelo roteador, ponderadas por seus pesos.<br>
+        &bull; <strong>Incógnitas:</strong> <code>x</code> = vetor do token; <code>W_1, W_2, W_3</code> = matrizes de projeção; <code>SiLU</code> = ativação suave; <code>TopK(x)</code> = os <code>K</code> especialistas selecionados; <code>g_i(x)</code> = peso do roteador (via Softmax) para o especialista <code>i</code>; <code>E_i(x)</code> = saída da rede especialista <code>i</code>.
+      </div>
+    </article>
+
+    <!-- SLIDE 15 -->
+    <article class="guide-card b2" id="slide-15">
+      <div class="guide-head"><span class="slide-badge">SLIDE 15</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Normalização, Conexões Residuais &amp; Geração do Próximo Token</h2>
+      <p class="speak-text">
+        "Como vemos no diagrama do bloco Decoder, cada subcamada é envolvida por uma conexão residual (que soma a entrada de volta à saída para não perder sinal em redes profundas) e por normalização (RMSNorm/LayerNorm). No topo da pilha, o último vetor oculto é multiplicado pela matriz do vocabulário para gerar pontuações (logits), que viram probabilidades via Softmax para sortear ou escolher o próximo token — ou o próximo campo JSON de uma Tool Call."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura Passo a Passo &amp; Incógnitas:</strong><br>
+        &bull; <strong>Como funciona:</strong> Em <code>H_1 = Norm(X + Attention(X))</code>, somamos a entrada original à saída da atenção (conexão residual) e normalizamos; no topo, <code>logits = h · W_vocab^T</code> projeta o vetor final no vocabulário e <code>softmax(logits)_i</code> converte em probabilidades.<br>
+        &bull; <strong>Incógnitas:</strong> <code>X</code> = entrada do bloco; <code>H_1</code> = estado normalizado; <code>h</code> = vetor oculto final; <code>W_vocab^T</code> = matriz do vocabulário transposta; <code>logits</code> = pontuações brutas por token; <code>P(t_i | ctx)</code> = probabilidade do token <code>t_i</code> dado o contexto <code>ctx</code>.
+      </div>
+    </article>
+
+    <!-- SLIDE 16 -->
+    <article class="guide-card b2" id="slide-16">
+      <div class="guide-head"><span class="slide-badge">SLIDE 16</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Ecossistema LangChain &amp; Camada de Provedores</h2>
+      <p class="speak-text">
+        "Saindo do modelo para a engenharia de aplicação, o ecossistema se divide em três papéis: o <strong>LangChain</strong> fornece os blocos de montagem (prompts, parsers, tools, RAG); o <strong>LangGraph</strong> controla fluxos complexos com estado e ciclos; e o <strong>LangSmith</strong> cuida de rastreamento e avaliação. Acima disso, gateways como <strong>OpenRouter</strong> e <strong>LiteLLM</strong> padronizam o acesso a múltiplos LLMs sem reescrever o código."
+      </p>
+    </article>
+
+    <!-- SLIDE 17 -->
+    <article class="guide-card b2" id="slide-17">
+      <div class="guide-head"><span class="slide-badge">SLIDE 17</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Prompt Templates, Chains (LCEL) &amp; Output Parsers</h2>
+      <p class="speak-text">
+        "Com a linguagem de expressão LCEL, encadeamos etapas usando o operador pipe (<code>|</code>): o template formata a pergunta, o modelo processa e o Output Parser garante uma saída estruturada em JSON válida via Pydantic, permitindo gravar no banco ou chamar APIs."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura da Fórmula:</strong><br>
+        <code>f(x) = f_3(f_2(f_1(x))) &lt;=&gt; prompt | model | parser</code> — "É uma composição matemática de funções: a saída do prompt vira entrada do modelo, cuja saída vira entrada do parser."
+      </div>
+    </article>
+
+    <!-- SLIDE 18 -->
+    <article class="guide-card b2" id="slide-18">
+      <div class="guide-head"><span class="slide-badge">SLIDE 18</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>RAG — Retrieval-Augmented Generation</h2>
+      <p class="speak-text">
+        "Quando temos manuais ou PDFs extensos, não dá para enviar tudo em cada pergunta. O RAG resolve isso em duas fases: primeiro indexamos os documentos em pedaços (chunks) e embeddings no banco vetorial; depois, na hora da pergunta, recuperamos apenas os K trechos mais relevantes e injetamos no contexto. Diferente do Fine-Tuning (que altera pesos do modelo via treino), o RAG fornece conhecimento vivo e rastreável em tempo de inferência."
+      </p>
+    </article>
+
+    <!-- SLIDE 19 -->
+    <article class="guide-card b2" id="slide-19">
+      <div class="guide-head"><span class="slide-badge">SLIDE 19</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Chunking, Espaço Vetorial &amp; PostgreSQL + pgvector</h2>
+      <p class="speak-text">
+        "No chunking, há um equilíbrio: chunks curtos dão precisão pontual, chunks longos preservam contexto, e usamos <em>overlap</em> (sobreposição) para não cortar ideias no meio. A busca semântica usa índices HNSW para encontrar vizinhos rapidamente, combinando similaridade vetorial com busca lexical e filtros SQL. No nosso projeto, usamos PostgreSQL com a extensão <code>pgvector</code>, unificando dados relacionais e vetores no mesmo banco."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura Passo a Passo &amp; Incógnitas:</strong><br>
+        &bull; <strong>Como funciona:</strong> A similaridade do cosseno <code>sim_cos(A, B) = (A · B) / (||A|| ||B||)</code> mede o ângulo entre dois vetores (perto de 1 = mesmo significado); <code>d_L2(A, B) = ||A - B||_2</code> mede a distância em linha reta; e o índice HNSW busca em tempo <code>O(log N)</code>.<br>
+        &bull; <strong>Incógnitas:</strong> <code>A</code> e <code>B</code> = vetores de embedding (pergunta e chunk); <code>A · B</code> = produto escalar; <code>||A||, ||B||</code> = norma (comprimento) dos vetores; <code>N</code> = total de vetores indexados no <code>pgvector</code>.
+      </div>
+    </article>
+
+    <!-- SLIDE 20 -->
+    <article class="guide-card b2" id="slide-20">
+      <div class="guide-head"><span class="slide-badge">SLIDE 20</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Tools &amp; Fundamentos Teóricos de Tool Calling</h2>
+      <p class="speak-text">
+        "Um conceito essencial: o LLM <strong>nunca executa código</strong> diretamente. Nós injetamos os esquemas JSON das ferramentas no contexto, e a <code>docstring</code> e tipagem funcionam como âncora semântica na Self-Attention. Por decodificação estruturada, o modelo emite uma proposta JSON escolhendo a ferramenta e os parâmetros. O orquestrador em Python valida permissões, executa a função real (SQL, Web, cálculo) e devolve o resultado via <code>ToolMessage</code>."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura Passo a Passo &amp; Incógnitas:</strong><br>
+        <code>P(y_t | x, C, T) -&gt; w_t em V  ou  (f_k, theta_k) em T</code><br>
+        &bull; <strong>Como funciona:</strong> Dado o pedido, o contexto e os schemas das ferramentas, o modelo decide a cada passo se gera texto comum no vocabulário ou se emite uma chamada estruturada com função e argumentos.<br>
+        &bull; <strong>Incógnitas:</strong> <code>y_t</code> = saída no passo <code>t</code>; <code>x</code> = pergunta do usuário; <code>C</code> = contexto atual; <code>T</code> = conjunto de ferramentas; <code>w_t</code> = token textual do vocabulário <code>V</code>; <code>f_k</code> = função escolhida; <code>theta_k</code> = argumentos JSON.
+      </div>
+    </article>
+
+    <!-- SLIDE 21 -->
+    <article class="guide-card b2" id="slide-21">
+      <div class="guide-head"><span class="slide-badge">SLIDE 21</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Agentes Inteligentes (Ciclo ReAct) vs. Chains</h2>
+      <p class="speak-text">
+        "Quando o caminho não é fixo, usamos Agentes baseados no paradigma ReAct (Reason + Act), mostrado no diagrama: o agente recebe a tarefa, raciocina no LLM, dispara uma ação (Tool), observa o retorno real e decide se precisa de outro passo antes de responder. Isso reduz alucinações porque cada pensamento é ancorado em observações reais. Na tabela, contrastamos a Chain (fluxo fixo e previsível) com o Agente (dinâmico, porém com custo variável)."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura Passo a Passo &amp; Incógnitas do Agente:</strong><br>
+        &bull; <strong>Como funciona:</strong> No passo <code>t</code>, <code>a_t ~ pi(a | s_t)</code> escolhe a próxima ferramenta com base no histórico; após executar a ferramenta e receber a resposta real, <code>s_{t+1} = T(s_t, a_t, o_t)</code> atualiza o estado para a próxima decisão.<br>
+        &bull; <strong>Incógnitas:</strong> <code>t</code> = iteração do loop; <code>s_t</code> = estado atual (histórico até <code>t</code>); <code>a_t</code> = ação escolhida (tool + args); <code>pi</code> = política de decisão (LLM); <code>o_t</code> = observação retornada pela ferramenta; <code>T</code> = função de transição de estado.
+      </div>
+    </article>
+
+    <!-- SLIDE 22 -->
+    <article class="guide-card b2" id="slide-22">
+      <div class="guide-head"><span class="slide-badge">SLIDE 22</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>LangGraph &amp; Model Context Protocol (MCP)</h2>
+      <p class="speak-text">
+        "Para produção, loops livres podem sair do controle. O <strong>LangGraph</strong> formaliza o agente como uma máquina de estados em grafo: temos um estado tipado compartilhado, nós que processam etapas, arestas condicionais com limite de iterações e checkpoints para pausar e pedir aprovação humana. Já o <strong>MCP</strong> (Model Context Protocol, da Anthropic) padroniza via JSON-RPC 2.0 a comunicação entre a aplicação (Host/Client) e servidores externos, expondo três primitivas: Resources (dados somente leitura), Tools (ações do modelo) e Prompts (templates do usuário)."
+      </p>
+      <div class="math-explain">
+        <strong>Leitura das Notações:</strong><br>
+        &bull; <code>G = (V, E, S)</code>: "Grafo formado por vértices/nós <code>V</code>, arestas de transição <code>E</code> e estado compartilhado <code>S</code>."<br>
+        &bull; <code>O(N x M) -&gt; O(N + M)</code>: "Em vez de escrever conectores exclusivos para cada par de <code>N</code> modelos por <code>M</code> ferramentas, o protocolo padrão reduz o esforço para <code>N + M</code>."
+      </div>
+    </article>
+
+    <!-- SLIDE 23 -->
+    <article class="guide-card b2" id="slide-23">
+      <div class="guide-head"><span class="slide-badge">SLIDE 23</span><span class="block-tag">Bloco 2 — Fundamentos Técnicos</span></div>
+      <h2>Arquiteturas dos 3 Modelos Avaliados na Plataforma</h2>
+      <p class="speak-text">
+        "Avaliamos três modelos com arquiteturas distintas sob a mesma orquestração: o <strong>GPT-6.1-Sol</strong> (Decoder-Only com Grouped-Query Attention, focado em convergência rápida); o <strong>Gemini-4-Hydrogen</strong> (Multimodal Sparse MoE, que tende a fazer verificação cruzada entre ferramentas); e o <strong>Kimi-K3.1-Pro</strong> (Long-Context MoE com Multi-Head Latent Attention, focado em cadeias analíticas extensas)."
+      </p>
+    </article>
+
+    <!-- SLIDE 24 -->
+    <article class="guide-card b3" id="slide-24">
+      <div class="guide-head"><span class="slide-badge">SLIDE 24</span><span class="block-tag">Bloco 3 — Experimento e Aplicação Prática</span></div>
+      <h2>Aplicação Construída: Arquitetura do Projeto</h2>
+      <p class="speak-text">
+        "Este diagrama mostra exatamente o que construímos no nosso projeto <strong>AI Tool Orchestrator</strong>. Na esquerda temos o Frontend Web com o Visualizador Transformer, o Comparador de Tokens e o leitor de Stream SSE em tempo real. No centro, o FastAPI na porta 8001 sobe automaticamente o PostgreSQL + pgvector no Docker e executa o Agent Loop do LangChain via OpenRouter nos três LLMs. À direita estão as ferramentas reais: consultas SQL parametrizadas, busca web multi-fonte com leitura estruturada de páginas (JSON-LD e Jina Reader), leitura/geração de PDFs locais e APIs externas."
+      </p>
+    </article>
+
+    <!-- SLIDE 25 -->
+    <article class="guide-card b3" id="slide-25">
+      <div class="guide-head"><span class="slide-badge">SLIDE 25</span><span class="block-tag">Bloco 3 — Experimento e Aplicação Prática</span></div>
+      <h2>Experimento Quantitativo: Consumo Real de Tokens (3 LLMs)</h2>
+      <p class="speak-text">
+        "Submetemos a mesma pergunta de banco de dados aos três modelos pelo nosso endpoint <code>/api/compare-models</code>. Enquanto o baseline isolado falhou (0% de acurácia factual em 2,3 segundos), o <strong>GPT-6.1-Sol</strong> resolveu com apenas 2 chamadas e 1 ferramenta, totalizando <strong>1.295 tokens</strong>. Já o Gemini-4 consumiu <strong>2.786 tokens</strong> e o Kimi-K3.1 consumiu <strong>3.547 tokens</strong> — ambos fazendo 3 chamadas para validar compras e vendas. Ou seja, o GPT-6.1 economizou 63,5% de tokens na mesma tarefa."
+      </p>
+    </article>
+
+    <!-- SLIDE 26 -->
+    <article class="guide-card b3" id="slide-26">
+      <div class="guide-head"><span class="slide-badge">SLIDE 26</span><span class="block-tag">Bloco 3 — Experimento e Aplicação Prática</span></div>
+      <h2>Experimento (Parte 1): Prompt Errado / Vago (Medição Real)</h2>
+      <p class="speak-text">
+        "Para provar o impacto da escrita do prompt no roteamento, enviamos o pedido vago <em>'Me vê os dados de 2025 aí'</em> no modo automático. Como 'dados' é ambíguo, a Self-Attention não convergiu e o agente disparou <strong>4 ferramentas exploratórias</strong> (arquivos, compras, vendas e web), consumindo <strong>6.703 tokens</strong> em 4 chamadas e quase 7,5 segundos."
+      </p>
+    </article>
+
+    <!-- SLIDE 27 -->
+    <article class="guide-card b3" id="slide-27">
+      <div class="guide-head"><span class="slide-badge">SLIDE 27</span><span class="block-tag">Bloco 3 — Experimento e Aplicação Prática</span></div>
+      <h2>Experimento (Parte 2): Prompt Detalhado &amp; Token Economics</h2>
+      <p class="speak-text">
+        "Consolidando todos os nossos indicadores reais de <em>Token Economics</em>: apenas escrever um prompt estruturado no mesmo modo automático derrubou o gasto de 6.703 para <strong>2.423 tokens</strong> (2,77 vezes menos) e cortou a latência pela metade. Restringir o <code>bind_tools</code> apenas às ferramentas SQL economizou mais 40,6%, chegando a <strong>1.439 tokens</strong>. Também medimos o custo da memória (o Turno 2 subiu 59,8% em tokens de entrada pelo histórico), o custo extra das arquiteturas MoE de verificação cruzada (Gemini-4 e Kimi-K3.1) e a velocidade de uma Chain fixa em LCEL (1,7 segundo em 1 passo)."
+      </p>
+    </article>
+
+    <!-- SLIDE 28 -->
+    <article class="guide-card b4" id="slide-28">
+      <div class="guide-head"><span class="slide-badge">SLIDE 28</span><span class="block-tag">Bloco 4 — Limitações e Discussão Crítica</span></div>
+      <h2>Segurança &amp; Human-in-the-Loop em Produção</h2>
+      <p class="speak-text">
+        "Dar ferramentas ao LLM amplia o poder, mas também a superfície de ataque: existe risco de Prompt Injection (inclusive indireto via páginas web ou PDFs recuperados) e SQL Injection. A regra de ouro é: o prompt não é firewall. A segurança precisa estar no código com SQL parametrizado, menor privilégio e <em>Human-in-the-loop</em> para ações críticas."
+      </p>
+    </article>
+
+    <!-- SLIDE 29 -->
+    <article class="guide-card b4" id="slide-29">
+      <div class="guide-head"><span class="slide-badge">SLIDE 29</span><span class="block-tag">Bloco 4 — Limitações e Discussão Crítica</span></div>
+      <h2>Avaliação &amp; Observabilidade de Aplicações LLM</h2>
+      <p class="speak-text">
+        "Em sistemas com RAG e agentes, não basta olhar se a resposta 'parece boa'. Precisamos medir <strong>Faithfulness</strong> (se está ancorada nas fontes reais), <strong>Answer Relevance</strong>, <strong>Context Precision/Recall</strong> (qualidade da recuperação), além de latência e custo de tokens — exatamente como fizemos no painel de rastreamento do projeto."
+      </p>
+    </article>
+
+    <!-- SLIDE 30 -->
+    <article class="guide-card b4" id="slide-30">
+      <div class="guide-head"><span class="slide-badge">SLIDE 30</span><span class="block-tag">Bloco 4 — Limitações e Discussão Crítica</span></div>
+      <h2>Limitações, Custos &amp; Trade-offs Críticos</h2>
+      <p class="speak-text">
+        "Como discussão crítica: agentes multiplicam tokens porque cada iteração reenvia o histórico completo; arquiteturas MoE exigem muita memória VRAM para manter todos os especialistas e balanceamento de carga; e nem todo problema precisa de agente — use Chains LCEL quando o fluxo for previsível, e reserve Agentes ou LangGraph para tarefas dinâmicas."
+      </p>
+    </article>
+
+    <!-- SLIDE 31 -->
+    <article class="guide-card b4" id="slide-31">
+      <div class="guide-head"><span class="slide-badge">SLIDE 31</span><span class="block-tag">Encerramento</span></div>
+      <h2>Síntese Final &amp; Referências Bibliográficas</h2>
+      <p class="speak-text">
+        "Respondendo à nossa questão central: um Transformer processa e gera linguagem; o LangChain conecta esse modelo a documentos, bancos de dados e ferramentas reais; o LangGraph traz controle de estado e segurança; e a observabilidade garante eficiência de tokens. A inteligência da aplicação nasce dessa arquitetura integrada. Muito obrigado e fico à disposição para perguntas."
+      </p>
+    </article>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const cards = Array.from(document.querySelectorAll('.guide-card'));
+      const quickNav = document.getElementById('quickNav');
+      const searchInput = document.getElementById('searchSlide');
+      const timerView = document.getElementById('timerView');
+      const btnTimer = document.getElementById('btnTimer');
+      const btnResetTimer = document.getElementById('btnResetTimer');
+      let scale = 1;
+      let sec = 0;
+      let tId = null;
+
+      cards.forEach((c, idx) => {
+        const num = String(idx + 1).padStart(2, '0');
+        const a = document.createElement('a');
+        a.href = `#${c.id}`;
+        a.className = 'quick-pill';
+        a.textContent = `S${num}`;
+        a.title = c.querySelector('h2')?.textContent || `Slide ${num}`;
+        quickNav.appendChild(a);
+      });
+
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim().toLowerCase();
+        cards.forEach(c => {
+          const match = !q || c.textContent.toLowerCase().includes(q);
+          c.style.display = match ? 'flex' : 'none';
+        });
+      });
+
+      document.getElementById('btnFontPlus').addEventListener('click', () => {
+        scale = Math.min(1.45, +(scale + 0.1).toFixed(2));
+        document.documentElement.style.setProperty('--font-scale', scale);
+      });
+      document.getElementById('btnFontMinus').addEventListener('click', () => {
+        scale = Math.max(0.8, +(scale - 0.1).toFixed(2));
+        document.documentElement.style.setProperty('--font-scale', scale);
+      });
+
+      function fmt(s) {
+        return `⏱️ ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+      }
+
+      btnTimer.addEventListener('click', () => {
+        if (tId) {
+          clearInterval(tId);
+          tId = null;
+          btnTimer.textContent = '▶ Retomar';
+        } else {
+          tId = setInterval(() => {
+            sec++;
+            timerView.textContent = fmt(sec);
+          }, 1000);
+          btnTimer.textContent = '⏸ Pausar';
+        }
+      });
+
+      btnResetTimer.addEventListener('click', () => {
+        if (tId) { clearInterval(tId); tId = null; }
+        sec = 0;
+        timerView.textContent = fmt(0);
+        btnTimer.textContent = '▶ Iniciar';
+      });
+    });
+  </script>
+</body>
+</html>
